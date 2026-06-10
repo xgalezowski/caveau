@@ -82,6 +82,27 @@ export async function analyserEtiquette(apiKey, base64, mediaType) {
   return extraireJSON(texte);
 }
 
+const PROMPT_ETIQUETTE_SPIRIT = 'Voici une étiquette de spiritueux. Réponds UNIQUEMENT avec un JSON : {"type": "Whisky"|"Rhum"|"Gin"|"Cognac"|"Armagnac"|"Calvados"|"Eau-de-vie"|"Vodka"|"Tequila / Mezcal"|"Liqueur"|"Autre", "marque": string|null (marque ou distillerie), "nom": string|null (expression ou cuvée, ex : "Uigeadail", "XO", "12 ans"), "age": number|null (âge en années si indiqué), "alcool": number|null (degré % vol), "pays": string|null}.';
+
+export async function analyserEtiquetteSpirit(apiKey, base64, mediaType) {
+  let texte;
+  if (fournisseur(apiKey) === 'anthropic') {
+    texte = await appelerClaude(apiKey, [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: PROMPT_ETIQUETTE_SPIRIT },
+      ],
+    }], 'Tu es un caviste expert en spiritueux.', 500);
+  } else {
+    texte = await appelerGemini(apiKey, [
+      { inline_data: { mime_type: mediaType, data: base64 } },
+      { text: PROMPT_ETIQUETTE_SPIRIT },
+    ], 'Tu es un caviste expert en spiritueux.');
+  }
+  return extraireJSON(texte);
+}
+
 /* ─── Enrichissement web : prix + fiche détaillée ───
    Avec Gemini : vraie recherche Google (grounding). Avec Claude : connaissances
    du modèle, signalées comme estimation. Renvoie :

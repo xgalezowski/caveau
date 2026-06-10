@@ -2,11 +2,11 @@
 // parser.js / sommelier.js / wine-data.js ; ici on ne fait qu'orchestrer.
 
 import { store } from './store.js';
-import { parseTexte, parseLigne } from './parser.js';
+import { parseTexte, parseLigne, parseTexteSpirit, parseLigneSpirit } from './parser.js';
 import { recommander, surprise, argumentaire } from './sommelier.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
-import { analyserEtiquette, sommelierPlus, equivalents, enrichirBouteille } from './ai.js';
+import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille } from './ai.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -426,23 +426,37 @@ function liensRachatHTML(b) {
 
 /* ═══ AJOUTER ═══ */
 function initAjouter() {
-  const montrerModeVin = () => {
-    const actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'texte';
-    ['texte', 'voix', 'photo'].forEach((m) => { $(`#panneau-${m}`).hidden = catAjout !== 'vin' || m !== actif; });
-    $('#modes-ajout').hidden = catAjout !== 'vin';
-    $('#panneau-spiritueux').hidden = catAjout !== 'spiritueux';
+  const aideMicro = () => catAjout === 'spiritueux'
+    ? 'Touchez et dictez : « une bouteille de whisky Lagavulin seize ans, quatre-vingts euros »'
+    : 'Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »';
+  // Texte, voix et photo sont communs aux vins et aux spiritueux ;
+  // le mode « 📋 Fiche » (formulaire) n'existe que pour les spiritueux.
+  const montrerModes = () => {
+    $('#modes-ajout [data-mode="forme"]').hidden = catAjout !== 'spiritueux';
+    let actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'texte';
+    if (actif === 'forme' && catAjout === 'vin') {
+      actif = 'texte';
+      $('#modes-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x.dataset.mode === 'texte'));
+    }
+    ['texte', 'voix', 'photo'].forEach((m) => { $(`#panneau-${m}`).hidden = m !== actif; });
+    $('#panneau-spiritueux').hidden = !(catAjout === 'spiritueux' && actif === 'forme');
+    $('#saisie-texte').placeholder = catAjout === 'spiritueux'
+      ? 'Ex : Ardbeg Uigeadail whisky 54,2%, 80€\n2 bouteilles de rhum Clément XO\nGin Monkey 47, 45€'
+      : 'Ex : 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€\nSancerre blanc 2022, 18 euros\nChampagne Bollinger, x2';
+    $('#micro-aide').textContent = aideMicro();
   };
   $('#categorie-ajout').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     catAjout = s.dataset.cat;
     $('#categorie-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
     aAjouter = []; $('#apercu-ajout').innerHTML = '';
-    montrerModeVin();
+    montrerModes();
   });
   $('#modes-ajout').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     $('#modes-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
-    montrerModeVin();
+    montrerModes();
   });
   if (!voixDisponible) $('#modes-ajout [data-mode="voix"]').style.display = 'none';
+  const rendreApercuCourant = () => catAjout === 'spiritueux' ? rendreApercuSpirit() : rendreApercu();
 
   // Formulaire spiritueux
   $('#sp-type').innerHTML = optionsListe(TYPES_SPIRITUEUX, 'Whisky');
@@ -466,8 +480,8 @@ function initAjouter() {
   $('#btn-analyser-texte').onclick = () => {
     const t = $('#saisie-texte').value.trim();
     if (!t) return toast('Décrivez d\'abord vos bouteilles');
-    aAjouter = parseTexte(t);
-    rendreApercu();
+    aAjouter = catAjout === 'spiritueux' ? parseTexteSpirit(t) : parseTexte(t);
+    rendreApercuCourant();
   };
 
   // Voix
@@ -479,9 +493,9 @@ function initAjouter() {
     rec = dicter({
       onResult: (txt, final) => {
         $('#transcript-ajout').textContent = txt;
-        if (final) { aAjouter = parseTexte(txt); rendreApercu(); }
+        if (final) { aAjouter = catAjout === 'spiritueux' ? parseTexteSpirit(txt) : parseTexte(txt); rendreApercuCourant(); }
       },
-      onEnd: () => { rec = null; $('#btn-micro').classList.remove('ecoute'); $('#micro-aide').textContent = 'Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »'; },
+      onEnd: () => { rec = null; $('#btn-micro').classList.remove('ecoute'); $('#micro-aide').textContent = aideMicro(); },
       onError: (msg) => { toast(msg); },
     });
   };
@@ -492,10 +506,12 @@ function initAjouter() {
     if (!fichiers.length) return;
     if (e.target.files.length > 10) toast('Maximum 10 photos à la fois — les premières sont traitées');
     const { apiKey } = store.get().settings;
+    const spirit = catAjout === 'spiritueux';
     if (!apiKey) {
       $('#note-photo-ia').textContent = 'Astuce : ajoutez une clé IA (Gemini ou Claude) dans Stats → Réglages pour la lecture automatique d\'étiquettes. En attendant, fiches manuelles pré-créées.';
-      aAjouter = fichiers.map((f) => parseLigne(f.name.replace(/\.[a-z]+$/i, '').replace(/[-_]/g, ' ')));
-      rendreApercu();
+      const depuisNom = (f) => f.name.replace(/\.[a-z]+$/i, '').replace(/[-_]/g, ' ');
+      aAjouter = fichiers.map((f) => spirit ? parseLigneSpirit(depuisNom(f)) : parseLigne(depuisNom(f)));
+      rendreApercuCourant();
       e.target.value = '';
       return;
     }
@@ -505,25 +521,36 @@ function initAjouter() {
       $('#note-photo-ia').textContent = `👁️ Lecture des étiquettes… ${i + 1} / ${fichiers.length}`;
       try {
         const { base64, type } = await compresser(fichiers[i]);
-        const r = await analyserEtiquette(apiKey, base64, type);
-        const region = REGIONS.includes(r.region) ? r.region : (r.region || 'Monde');
-        const g = gardeParDefaut(region, r.couleur || 'rouge', r.millesime);
-        lus.push({
-          nom: r.nom || 'Vin', domaine: r.domaine || '', appellation: r.appellation || null,
-          pays: r.pays || null, region,
-          couleur: COULEURS.includes(r.couleur) ? r.couleur : 'rouge',
-          millesime: r.millesime || null,
-          cepages: Array.isArray(r.cepages) ? r.cepages.join(', ') : (r.cepages || null),
-          alcool: r.alcool || null, prix: null, qty: 1, ...g,
-        });
+        if (spirit) {
+          const r = await analyserEtiquetteSpirit(apiKey, base64, type);
+          lus.push({
+            categorie: 'spiritueux',
+            type: TYPES_SPIRITUEUX.includes(r.type) ? r.type : 'Autre',
+            domaine: r.marque || '', nom: r.nom || r.type || 'Spiritueux',
+            age: r.age || null, alcool: r.alcool || null,
+            pays: r.pays || null, format: '75 cl', prix: null, qty: 1,
+          });
+        } else {
+          const r = await analyserEtiquette(apiKey, base64, type);
+          const region = REGIONS.includes(r.region) ? r.region : (r.region || 'Monde');
+          const g = gardeParDefaut(region, r.couleur || 'rouge', r.millesime);
+          lus.push({
+            nom: r.nom || 'Vin', domaine: r.domaine || '', appellation: r.appellation || null,
+            pays: r.pays || null, region,
+            couleur: COULEURS.includes(r.couleur) ? r.couleur : 'rouge',
+            millesime: r.millesime || null,
+            cepages: Array.isArray(r.cepages) ? r.cepages.join(', ') : (r.cepages || null),
+            alcool: r.alcool || null, prix: null, qty: 1, ...g,
+          });
+        }
       } catch (err) {
         toast(`Photo ${i + 1} illisible (${err.message}) — fiche vide à compléter`);
-        lus.push(parseLigne('Vin à identifier'));
+        lus.push(spirit ? parseLigneSpirit('Spiritueux à identifier') : parseLigne('Vin à identifier'));
       }
     }
     $('#note-photo-ia').textContent = '';
     aAjouter = lus;
-    rendreApercu();
+    rendreApercuCourant();
     e.target.value = '';
   };
 }
@@ -585,7 +612,7 @@ function rendreApercuSpirit() {
   if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
   $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
     <div class="apercu" data-i="${i}">
-      <h4>🥃 Spiritueux détecté</h4>
+      <h4>🥃 Spiritueux ${aAjouter.length > 1 ? i + 1 : 'détecté'}</h4>
       <div class="ligne">
         <div style="flex:1"><label>Type</label><select data-k="type">${optionsListe(TYPES_SPIRITUEUX, b.type)}</select></div>
         <div style="flex:1.3"><label>Marque / distillerie</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>

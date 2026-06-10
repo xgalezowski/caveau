@@ -105,3 +105,64 @@ export function parseLigne(ligne) {
 export function parseTexte(texte) {
   return decoupe(texte).map(parseLigne);
 }
+
+/* ═══ Spiritueux ═══ */
+
+const MOTS_SPIRIT = {
+  whisky: 'Whisky', whiskey: 'Whisky', scotch: 'Whisky', bourbon: 'Whisky', 'single malt': 'Whisky',
+  rhum: 'Rhum', rum: 'Rhum', gin: 'Gin', cognac: 'Cognac', armagnac: 'Armagnac',
+  calvados: 'Calvados', 'eau-de-vie': 'Eau-de-vie', 'eau de vie': 'Eau-de-vie',
+  vodka: 'Vodka', tequila: 'Tequila / Mezcal', mezcal: 'Tequila / Mezcal',
+  liqueur: 'Liqueur', chartreuse: 'Liqueur', pastis: 'Liqueur',
+};
+const PAYS_SPIRIT = {
+  'Whisky': 'Écosse', 'Cognac': 'France', 'Armagnac': 'France', 'Calvados': 'France',
+  'Eau-de-vie': 'France', 'Liqueur': 'France', 'Tequila / Mezcal': 'Mexique',
+};
+
+// Parse UNE ligne décrivant un spiritueux. Jamais bloquant.
+export function parseLigneSpirit(ligne) {
+  let reste = ` ${ligne} `;
+  const b = { categorie: 'spiritueux', qty: 1, type: null, age: null, alcool: null, prix: null, pays: null };
+
+  const qtyM = reste.match(/(?:^|\s)(\d{1,2})\s*(?:x\s|bouteilles?|btl?s?\b|flacons?)/i) || reste.match(/(?:^|\s)x\s?(\d{1,2})\b/i);
+  if (qtyM) { b.qty = parseInt(qtyM[1], 10); reste = reste.replace(qtyM[0], ' '); }
+
+  const prixM = reste.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?\b)/i) || reste.match(/€\s*(\d+(?:[.,]\d{1,2})?)/);
+  if (prixM) { b.prix = parseFloat(prixM[1].replace(',', '.')); reste = reste.replace(prixM[0], ' '); }
+
+  // Degré : « 54% », « 54°», « 54,2 % vol » — avant l'âge pour ne pas confondre
+  const degM = reste.match(/(\d{2}(?:[.,]\d)?)\s*(?:%|°|degres|degrés)/i);
+  if (degM) { b.alcool = parseFloat(degM[1].replace(',', '.')); reste = reste.replace(degM[0], ' '); }
+
+  // Âge : « 12 ans », « 12 ans d'âge »
+  const ageM = reste.match(/(\d{1,2})\s*ans?\b/i);
+  if (ageM) { b.age = parseInt(ageM[1], 10); reste = reste.replace(ageM[0], ' '); }
+
+  // Type
+  const resteN = norm(reste);
+  for (const [mot, type] of Object.entries(MOTS_SPIRIT)) {
+    if (new RegExp(`\\b${norm(mot).replace(/-/g, '[ -]')}\\b`).test(resteN)) {
+      b.type = type;
+      reste = reste.replace(new RegExp(mot.replace(/-/g, '[ -]'), 'i'), ' ');
+      break;
+    }
+  }
+  if (!b.type) b.type = 'Autre';
+  b.pays = PAYS_SPIRIT[b.type] || null;
+
+  // Marque = premier mot restant, nom/expression = la suite
+  const mots = reste
+    .replace(/[,;]/g, ' ')
+    .replace(/(^|\s)(bouteilles?|btl?s?|flacons?|de|du|des|le|la|les|une?|et|à|a|en|d)(?=\s|$)/gi, ' ')
+    .replace(/\s+/g, ' ').trim()
+    .replace(/(^|[\s-])([a-zà-ÿ])/g, (m, p, c) => p + c.toUpperCase())
+    .split(' ').filter(Boolean);
+  b.domaine = mots[0] || '';
+  b.nom = mots.slice(1).join(' ') || (b.age ? `${b.age} ans` : b.type);
+  return b;
+}
+
+export function parseTexteSpirit(texte) {
+  return decoupe(texte).map(parseLigneSpirit);
+}
