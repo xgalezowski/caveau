@@ -6,7 +6,7 @@ import { parseTexte, parseLigne, parseTexteSpirit, parseLigneSpirit } from './pa
 import { recommander, surprise, argumentaire } from './sommelier.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
-import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini } from './ai.js';
+import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille } from './ai.js';
 
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
 // sinon repli sur la synthèse du navigateur.
@@ -223,7 +223,7 @@ function rendreCave() {
 function carteHTML(b) {
   if (b.categorie === 'spiritueux') {
     return `<div class="carte" data-id="${b.id}">
-      <div class="carte-couleur c-spirit"></div>
+      ${b.image ? `<img class="carte-thumb" src="${b.image}" alt="">` : '<div class="carte-couleur c-spirit"></div>'}
       <div class="carte-corps">
         <div class="carte-nom">${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
         <div class="carte-meta">${esc(b.type || 'Spiritueux')}${b.age ? ` · ${b.age} ans` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
@@ -234,7 +234,7 @@ function carteHTML(b) {
   }
   const m = maturite(b);
   return `<div class="carte" data-id="${b.id}">
-    <div class="carte-couleur c-${b.couleur}"></div>
+    ${b.image ? `<img class="carte-thumb" src="${b.image}" alt="">` : `<div class="carte-couleur c-${b.couleur}"></div>`}
     <div class="carte-corps">
       <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
       <div class="carte-meta">${esc(b.appellation || b.region)}${b.prix ? ` · ${b.prix} €` : ''}${b.noteVivino ? ` · <span class="note-viv">★ ${String(b.noteVivino).replace('.', ',')}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
@@ -245,6 +245,69 @@ function carteHTML(b) {
 }
 
 /* ═══ Fiche bouteille (bottom sheet) ═══ */
+/* ═══ Image de la bouteille (générée par l'IA, mise en cache) ═══ */
+
+// Réduit une data URL en vignette JPEG légère pour tenir dans localStorage.
+async function compresserDataUrl(dataUrl, maxH = 540, q = 0.82) {
+  const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = dataUrl; });
+  const ratio = Math.min(1, maxH / img.height);
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(img.width * ratio); cv.height = Math.round(img.height * ratio);
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  return cv.toDataURL('image/jpeg', q);
+}
+
+// Bloc image affiché en tête de fiche.
+function blocImage(b) {
+  const { apiKey } = store.get().settings;
+  if (b.image) {
+    return `<div class="photo-bouteille"><img src="${b.image}" alt="${esc(b.nom || '')}"><button class="photo-regen" data-regen="${b.id}">🔄 Régénérer</button></div>`;
+  }
+  if (apiKey) {
+    return `<div class="photo-bouteille" id="photo-slot"><div class="photo-charge"><span class="photo-shimmer"></span>🎨 Le sommelier dessine votre bouteille…</div></div>`;
+  }
+  return ''; // pas de clé IA : pas d'image
+}
+
+// Lance la génération si nécessaire et branche le bouton « Régénérer ».
+function monterImage(id) {
+  const b = store.get().bottles.find((x) => x.id === id);
+  const { apiKey } = store.get().settings;
+  if (!b || !apiKey) return;
+  const regen = $(`[data-regen="${id}"]`);
+  if (regen) regen.onclick = () => genererEtAfficher(id, true);
+  if (!b.image) genererEtAfficher(id, false);
+}
+
+async function genererEtAfficher(id, forcer) {
+  const { apiKey } = store.get().settings;
+  const b = store.get().bottles.find((x) => x.id === id);
+  if (!b || !apiKey) return;
+  if (b.image && !forcer) return;
+  // Pendant la régénération, on remet le chargeur
+  const conteneur = $('.photo-bouteille');
+  if (forcer && conteneur) conteneur.innerHTML = '<div class="photo-charge"><span class="photo-shimmer"></span>🎨 Nouvelle illustration…</div>';
+  try {
+    const brute = await genererImageBouteille(apiKey, b);
+    if (!brute) throw new Error('Pas d\'image renvoyée');
+    const vignette = await compresserDataUrl(brute);
+    store.majBouteille(id, { image: vignette });
+    // N'actualise l'affichage que si la fiche est encore ouverte sur cette bouteille
+    const slot = $('.photo-bouteille');
+    if (slot && !$('#feuille').hidden) {
+      slot.innerHTML = `<img src="${vignette}" alt="${esc(b.nom || '')}"><button class="photo-regen" data-regen="${id}">🔄 Régénérer</button>`;
+      slot.querySelector('[data-regen]').onclick = () => genererEtAfficher(id, true);
+    }
+    if (ecranActif === 'cave') rendreCave();
+  } catch (e) {
+    const slot = $('.photo-bouteille');
+    if (slot) slot.innerHTML = `<button class="photo-regen" data-regen="${id}">🎨 Générer une image</button>`;
+    const btn = slot?.querySelector('[data-regen]');
+    if (btn) btn.onclick = () => genererEtAfficher(id, true);
+    console.warn('Image bouteille impossible', e);
+  }
+}
+
 function ouvrirFiche(id) {
   const b = store.get().bottles.find((x) => x.id === id);
   if (!b) return;
@@ -256,6 +319,7 @@ function ouvrirFiche(id) {
       <span class="cachet cachet-${m.code}">${m.label}</span>
       ${b.noteVivino ? `<span class="note-viv" style="margin-left:6px">★ ${String(b.noteVivino).replace('.', ',')}/5 Vivino</span>` : ''}
       ${b.gardeDe ? `<span style="margin-left:6px">garde ${b.gardeDe}–${b.gardeA}</span>` : ''}</p>
+    ${blocImage(b)}
     <div class="ligne">
       <div style="flex:2"><label>Nom / cuvée</label><input id="f-nom" value="${esc(b.nom)}"></div>
       <div style="flex:1"><label>Millésime</label><input id="f-mil" type="number" value="${b.millesime || ''}"></div>
@@ -298,6 +362,7 @@ function ouvrirFiche(id) {
     ${store.get().settings.apiKey ? '<button class="btn-fantome" id="f-btn-equiv">✨ Trouver des équivalents (IA)</button>' : ''}
     <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
   montrerFeuille(true);
+  monterImage(id);
 
   brancherSelectsRegion($('#feuille'));
   $('#f-save').onclick = () => {
@@ -351,6 +416,7 @@ function ouvrirFicheSpirit(b) {
     <h3>${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</h3>
     <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.type || 'Spiritueux')}
       ${b.noteWeb ? `<span class="note-viv" style="margin-left:6px">★ ${esc(b.noteWeb)}</span>` : ''}</p>
+    ${blocImage(b)}
     <div class="ligne">
       <div style="flex:1"><label>Type</label><select id="f-type">${optionsListe(TYPES_SPIRITUEUX, b.type || 'Autre')}</select></div>
       <div style="flex:1.3"><label>Marque / distillerie</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
@@ -386,6 +452,7 @@ function ouvrirFicheSpirit(b) {
     <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
     <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
   montrerFeuille(true);
+  monterImage(id);
   brancherSelectsRegion($('#feuille'));
 
   $('#f-save').onclick = () => {

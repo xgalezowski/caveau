@@ -7,6 +7,7 @@
 const MODELE_CLAUDE = 'claude-haiku-4-5-20251001';
 const MODELE_GEMINI = 'gemini-2.5-flash';
 const MODELE_TTS = 'gemini-2.5-flash-preview-tts';
+const MODELE_IMAGE = 'gemini-2.5-flash-image';
 const VOIX_SOMMELIER = 'Sulafat'; // voix chaleureuse
 
 export function fournisseur(apiKey) {
@@ -259,4 +260,37 @@ export async function equivalents(apiKey, bottle) {
     return appelerClaude(apiKey, [{ role: 'user', content: demande }], system, 500);
   }
   return appelerGemini(apiKey, [{ text: demande }], system, true);
+}
+
+/* ─── Génération d'image de la bouteille (Gemini image / nano-banana) ───
+   Renvoie une data URL PNG, ou null. Image générée d'après les
+   caractéristiques de la bouteille (Gemini uniquement).                  */
+
+function promptImage(b) {
+  if (b.categorie === 'spiritueux') {
+    const ident = [b.type, b.domaine, b.nom, b.age ? `${b.age} ans d'âge` : null].filter(Boolean).join(' ');
+    return `Photographie produit réaliste et élégante d'une bouteille de ${ident}, debout sur un comptoir de bar sombre, éclairage doux et tamisé, étiquette nette et lisible, reflets subtils sur le verre, cadrage vertical, bouteille entière centrée, ambiance feutrée.`;
+  }
+  const ident = [`vin ${b.couleur}`, b.appellation || b.region, b.domaine, b.millesime ? `millésime ${b.millesime}` : null].filter(Boolean).join(', ');
+  return `Photographie produit réaliste et élégante d'une bouteille de ${ident}, debout dans une cave à vin sombre, éclairage doux latéral, étiquette nette et lisible, reflets subtils sur le verre, cadrage vertical, bouteille entière centrée, ambiance feutrée et raffinée.`;
+}
+
+export async function genererImageBouteille(apiKey, b) {
+  if (!apiKey || fournisseur(apiKey) !== 'gemini') return null;
+  const rep = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODELE_IMAGE}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: promptImage(b) }] }],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      }),
+    }
+  );
+  if (!rep.ok) throw await erreurApi(rep);
+  const data = await rep.json();
+  const part = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+  if (!part) return null;
+  return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
 }
