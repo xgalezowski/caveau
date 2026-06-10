@@ -6,7 +6,14 @@ import { parseTexte, parseLigne, parseTexteSpirit, parseLigneSpirit } from './pa
 import { recommander, surprise, argumentaire } from './sommelier.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
-import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille } from './ai.js';
+import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini } from './ai.js';
+
+// Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
+// sinon repli sur la synthèse du navigateur.
+function dire(texte) {
+  const { voixActive, apiKey } = store.get().settings;
+  parler(texte, voixActive, apiKey ? (t) => synthVoixGemini(apiKey, t) : null);
+}
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -373,7 +380,7 @@ function ouvrirFicheSpirit(b) {
       </button>
     </div>
     <div class="actions">
-      <button class="btn-or" id="f-sortir" style="flex:1.4">🥃 J'en sers un verre… ou je l'offre</button>
+      <button class="btn-or" id="f-sortir" style="flex:1.4">🥃 Je le sors de mon bar</button>
       <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
     </div>
     <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
@@ -403,10 +410,16 @@ function ouvrirFicheSpirit(b) {
     $('#f-niveau-val').textContent = `${v} %`;
     $('#f-niveau-alerte').textContent = v <= 25 && v > 0 ? ' — à finir en priorité !' : '';
   };
+  // Le niveau s'enregistre tout seul dès qu'on lâche le curseur
+  $('#f-niveau').onchange = () => {
+    store.majBouteille(id, { niveau: parseInt($('#f-niveau').value) });
+    rendreCave(); majBadgeAlertes();
+  };
   $('#f-sortir').onclick = () => {
     store.sortirBouteille(id, '', '');
     montrerFeuille(false); rendre(ecranActif);
-    toast('Notée comme sortie. Avec modération ! 🥃');
+    const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
+    toast(restant > 0 ? `Sortie du bar. Il en reste ${restant}.` : 'Dernière bouteille sortie du bar — pensez au rachat 😉');
   };
   $('#f-suppr').onclick = () => {
     if (confirm(`Supprimer « ${b.nom} » ?`)) {
@@ -441,7 +454,7 @@ function dialogueSortie(id) {
     montrerFeuille(false); rendre(ecranActif);
     const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
     toast(restant > 0 ? `Bonne dégustation ! Il en reste ${restant}.` : 'C\'était la dernière — pensez au rachat 😉');
-    parler(restant > 0 ? alea(PHRASES_SORTIE) : 'C\'était la dernière bouteille. Je la note pour le rachat !', store.get().settings.voixActive);
+    dire(restant > 0 ? alea(PHRASES_SORTIE) : 'C\'était la dernière bouteille. Je la note pour le rachat !');
     majBadgeAlertes();
   };
   $('#s-annule').onclick = () => montrerFeuille(false);
@@ -625,11 +638,24 @@ async function compresser(file) {
   return { base64: dataUrl.split(',')[1], type: 'image/jpeg' };
 }
 
+// Retire une fiche de l'aperçu sans toucher aux autres (tombstone) :
+// l'entrée passe à null, sa carte disparaît, le compteur se met à jour.
+function brancherSuppression() {
+  $('#apercu-ajout').querySelectorAll('[data-rm]').forEach((btn) => btn.onclick = () => {
+    aAjouter[+btn.dataset.rm] = null;
+    btn.closest('.apercu').remove();
+    const reste = aAjouter.filter(Boolean).length;
+    if (!reste) { aAjouter = []; $('#apercu-ajout').innerHTML = ''; return; }
+    const valid = $('#btn-confirmer-ajout');
+    if (valid) valid.textContent = `✓ Valider l'entrée${catAjout === 'spiritueux' ? '' : ' en cave'} (${reste})`;
+  });
+}
+
 function rendreApercu() {
   if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
   $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
     <div class="apercu" data-i="${i}">
-      <h4>🍾 Bouteille ${aAjouter.length > 1 ? i + 1 : 'détectée'}</h4>
+      <div class="apercu-tete"><h4>🍾 Bouteille ${aAjouter.length > 1 ? i + 1 : 'détectée'}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter cette bouteille">✕ Retirer</button></div>
       <div class="ligne">
         <div style="flex:2"><label>Nom / cuvée</label><input data-k="nom" value="${esc(b.nom)}"></div>
         <div style="flex:.8"><label>Millésime</label><input data-k="millesime" type="number" value="${b.millesime || ''}"></div>
@@ -661,6 +687,7 @@ function rendreApercu() {
     `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
     <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée en cave (${aAjouter.length})</button>`;
   brancherSelectsRegion($('#apercu-ajout'));
+  brancherSuppression();
   enrichirApercu();
 
   $('#btn-confirmer-ajout').onclick = confirmerAjout;
@@ -671,7 +698,7 @@ function rendreApercuSpirit() {
   if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
   $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
     <div class="apercu" data-i="${i}">
-      <h4>🥃 Spiritueux ${aAjouter.length > 1 ? i + 1 : 'détecté'}</h4>
+      <div class="apercu-tete"><h4>🥃 Spiritueux ${aAjouter.length > 1 ? i + 1 : 'détecté'}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter ce spiritueux">✕ Retirer</button></div>
       <div class="ligne">
         <div style="flex:1"><label>Type</label><select data-k="type">${optionsListe(TYPES_SPIRITUEUX, b.type)}</select></div>
         <div style="flex:1.3"><label>Marque / distillerie</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
@@ -696,6 +723,7 @@ function rendreApercuSpirit() {
     `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
     <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée (${aAjouter.length})</button>`;
   brancherSelectsRegion($('#apercu-ajout'));
+  brancherSuppression();
   $('#apercu-ajout').querySelectorAll('[data-k="niveau"]').forEach((r) => r.oninput = () => {
     r.closest('.bloc-niveau').querySelector('.niveau-val').textContent = `${r.value} %`;
   });
@@ -712,7 +740,7 @@ async function enrichirApercu() {
   for (let i = 0; i < lot.length; i++) {
     if (lot !== aAjouter) return;
     const b = lot[i];
-    if (b.description) continue;
+    if (!b || b.description) continue; // fiche retirée ou déjà enrichie
     const carte = () => document.querySelector(`.apercu[data-i="${i}"]`);
     const statut = (txt) => { const el = carte()?.querySelector('.statut-enrich'); if (el) el.textContent = txt; };
     statut('🔎 Recherche du prix et de la fiche sur le web…');
@@ -769,7 +797,7 @@ function confirmerAjout() {
   $('#apercu-ajout').innerHTML = '';
   $('#saisie-texte').value = ''; $('#transcript-ajout').textContent = '';
   toast(`${n} ${n > 1 ? 'entrées' : 'entrée'} en cave. Santé !`);
-  parler(n > 1 ? alea(PHRASES_AJOUT_LOT)(n) : alea(PHRASES_AJOUT), store.get().settings.voixActive);
+  dire(n > 1 ? alea(PHRASES_AJOUT_LOT)(n) : alea(PHRASES_AJOUT));
   majBadgeAlertes();
   // Si on a validé avant la fin de la recherche web, elle continue en
   // arrière-plan et complète les fiches directement en cave.
@@ -842,7 +870,7 @@ function initSommelier() {
       el.querySelector('[data-act="sortir"]').onclick = () => dialogueSortie(el.dataset.id);
       el.querySelector('[data-act="fiche"]').onclick = () => ouvrirFiche(el.dataset.id);
     });
-    parler(argumentaire(choix[0], profil), store.get().settings.voixActive);
+    dire(argumentaire(choix[0], profil));
   };
 
   $('#btn-surprise').onclick = () => {
@@ -861,7 +889,7 @@ function initSommelier() {
     const el = $('#resultats-sommelier .reco');
     el.querySelector('[data-act="sortir"]').onclick = () => dialogueSortie(b.id);
     el.querySelector('[data-act="encore"]').onclick = () => $('#btn-surprise').click();
-    parler(`Ce soir, je vous propose le ${b.nom} ${b.millesime || ''}.`, store.get().settings.voixActive);
+    dire(`Ce soir, je vous propose le ${b.nom} ${b.millesime || ''}.`);
   };
 }
 
@@ -882,7 +910,7 @@ function rendreSommelierPlus() {
     try {
       const rep = await sommelierPlus(store.get().settings.apiKey, q, store.get().bottles);
       $('#rep-libre').innerHTML = `<div class="bulle-ia">${esc(rep)}</div>`;
-      parler(rep, store.get().settings.voixActive);
+      dire(rep);
     } catch (e) { toast(e.message); }
     btn.textContent = 'Demander au Sommelier+'; btn.disabled = false;
   };

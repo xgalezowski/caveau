@@ -37,8 +37,9 @@ if (typeof speechSynthesis !== 'undefined') {
 }
 
 // Fait parler le sommelier (si la voix est activée dans les réglages).
-export function parler(texte, actif = true) {
-  if (!actif || typeof speechSynthesis === 'undefined') return;
+// Repli : synthèse vocale du navigateur (robotique mais toujours dispo)
+function parlerNavigateur(texte) {
+  if (typeof speechSynthesis === 'undefined') return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(texte);
   u.lang = 'fr-FR';
@@ -49,6 +50,30 @@ export function parler(texte, actif = true) {
   speechSynthesis.speak(u);
 }
 
+let audioCourant = null;
+// synthGemini : fonction async (texte) → Blob audio, injectée par l'app.
+// Si elle est fournie et réussit, on joue la belle voix ; sinon repli navigateur.
+export async function parler(texte, actif = true, synthGemini = null) {
+  if (!actif) return;
+  tairetout();
+  if (synthGemini) {
+    try {
+      const blob = await synthGemini(texte);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        audioCourant = new Audio(url);
+        audioCourant.onended = () => URL.revokeObjectURL(url);
+        await audioCourant.play();
+        return;
+      }
+    } catch (e) {
+      console.warn('Voix Gemini indisponible, repli navigateur', e);
+    }
+  }
+  parlerNavigateur(texte);
+}
+
 export function tairetout() {
+  if (audioCourant) { audioCourant.pause(); audioCourant = null; }
   if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
 }

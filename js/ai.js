@@ -6,9 +6,61 @@
 
 const MODELE_CLAUDE = 'claude-haiku-4-5-20251001';
 const MODELE_GEMINI = 'gemini-2.5-flash';
+const MODELE_TTS = 'gemini-2.5-flash-preview-tts';
+const VOIX_SOMMELIER = 'Sulafat'; // voix chaleureuse
 
 export function fournisseur(apiKey) {
   return apiKey.startsWith('sk-ant') ? 'anthropic' : 'gemini';
+}
+
+/* ─── Synthèse vocale Gemini (voix naturelle du sommelier) ───
+   Renvoie un Blob audio WAV jouable, ou null si indisponible.            */
+
+export async function synthVoixGemini(apiKey, texte) {
+  if (!apiKey || fournisseur(apiKey) !== 'gemini') return null;
+  const rep = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODELE_TTS}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: texte }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOIX_SOMMELIER } } },
+        },
+      }),
+    }
+  );
+  if (!rep.ok) throw await erreurApi(rep);
+  const data = await rep.json();
+  const part = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+  if (!part) return null;
+  // PCM L16 24 kHz mono → on l'emballe dans un conteneur WAV pour le lecteur audio
+  const mime = part.inlineData.mimeType || '';
+  const rate = parseInt((mime.match(/rate=(\d+)/) || [])[1], 10) || 24000;
+  const pcm = base64VersOctets(part.inlineData.data);
+  return new Blob([enteteWav(pcm.length, rate), pcm], { type: 'audio/wav' });
+}
+
+function base64VersOctets(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function enteteWav(dataLen, rate, canaux = 1, bits = 16) {
+  const blockAlign = (canaux * bits) >> 3;
+  const buf = new ArrayBuffer(44);
+  const v = new DataView(buf);
+  const txt = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+  txt(0, 'RIFF'); v.setUint32(4, 36 + dataLen, true); txt(8, 'WAVE');
+  txt(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, canaux, true); v.setUint32(24, rate, true);
+  v.setUint32(28, rate * blockAlign, true); v.setUint16(32, blockAlign, true);
+  v.setUint16(34, bits, true); txt(36, 'data'); v.setUint32(40, dataLen, true);
+  return buf;
 }
 
 /* ─── Appels bas niveau ─── */

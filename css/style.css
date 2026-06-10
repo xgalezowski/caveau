@@ -238,6 +238,12 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 .ligne-form label { font-size: 11px; color: var(--creme-45); display: block; margin-bottom: 3px; }
 .ligne-form input, .ligne-form select { padding: 10px 11px; font-size: 14px; }
 #cellule-valeur, #cellule-valeur-stats { cursor: pointer; }
+.apercu-tete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.apercu-suppr {
+  font-size: 12px; color: var(--rouge-vif); padding: 5px 11px;
+  border: 1px solid rgba(212, 87, 78, .4); border-radius: 999px; background: rgba(212, 87, 78, .08);
+}
+.apercu-suppr:active { background: rgba(212, 87, 78, .2); }
 .bloc-niveau { margin-top: 10px; }
 .bloc-niveau label { font-size: 12px; color: var(--creme-70); display: block; margin-bottom: 4px; }
 .bloc-niveau b { color: var(--or-clair); }
