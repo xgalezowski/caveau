@@ -26,6 +26,11 @@ let catCave = 'vin';
 let catAjout = 'vin';
 let filtreTypeSpirit = null;
 let filtreOuvert = null; // null | 'ouverte' | 'fermee'
+let filtreMaturite = null; // null | 'aboire' (vins prêts : apogée, à boire vite, sur le déclin)
+
+// États de maturité considérés « à boire maintenant », par ordre de priorité
+const A_BOIRE = ['urgent', 'passe', 'apogee'];
+const PRIO_DEGUSTATION = { urgent: 0, passe: 1, apogee: 2 };
 
 // Une bouteille de spiritueux est « ouverte » dès que son niveau est entamé
 const estOuverte = (b) => b.niveau != null && b.niveau < 100;
@@ -161,11 +166,17 @@ function rendreCave() {
 
   // Filtres : couleur pour les vins · type + ouverte/fermée pour les spiritueux
   if (catCave === 'vin') {
-    $('#filtres-couleur').innerHTML = ['toutes', ...COULEURS].map((c) =>
-      `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
-    ).join('');
-    $('#filtres-couleur').querySelectorAll('.puce').forEach((p) => p.onclick = () => {
+    $('#filtres-couleur').innerHTML =
+      `<button class="puce puce-aboire ${filtreMaturite === 'aboire' ? 'actif' : ''}" data-mat="aboire" style="margin-right:10px">🍷 À boire</button>` +
+      ['toutes', ...COULEURS].map((c) =>
+        `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
+      ).join('');
+    $('#filtres-couleur').querySelectorAll('[data-c]').forEach((p) => p.onclick = () => {
       filtreCouleur = p.dataset.c === 'toutes' ? null : p.dataset.c;
+      rendreCave();
+    });
+    $('#filtres-couleur').querySelectorAll('[data-mat]').forEach((p) => p.onclick = () => {
+      filtreMaturite = filtreMaturite === p.dataset.mat ? null : p.dataset.mat;
       rendreCave();
     });
   } else {
@@ -187,6 +198,7 @@ function rendreCave() {
 
   let visibles = enCave;
   if (catCave === 'vin' && filtreCouleur) visibles = visibles.filter((b) => b.couleur === filtreCouleur);
+  if (catCave === 'vin' && filtreMaturite === 'aboire') visibles = visibles.filter((b) => A_BOIRE.includes(maturite(b).code));
   if (catCave === 'spiritueux') {
     if (filtreTypeSpirit) visibles = visibles.filter((b) => (b.type || 'Autre') === filtreTypeSpirit);
     if (filtreOuvert === 'ouverte') visibles = visibles.filter(estOuverte);
@@ -196,8 +208,23 @@ function rendreCave() {
     `${b.nom} ${b.domaine || ''} ${b.appellation || ''} ${b.region || ''} ${b.type || ''} ${b.millesime || ''}`.toLowerCase().includes(recherche));
 
   if (!visibles.length) {
-    const vide = catCave === 'vin' ? 'Votre cave est vide' : 'Aucun spiritueux pour l\'instant';
-    $('#liste-cave').innerHTML = `<div class="vide"><div class="gros">${enCave.length ? 'Rien ne correspond' : vide}</div>${enCave.length ? '' : 'Passez par l\'onglet <b>Ajouter</b> — à la voix, c\'est encore mieux.'}</div>`;
+    const vide = filtreMaturite === 'aboire' ? 'Aucun vin n\'est à boire dès maintenant'
+      : catCave === 'vin' ? 'Votre cave est vide' : 'Aucun spiritueux pour l\'instant';
+    const sous = filtreMaturite === 'aboire' ? 'Tant mieux : rien ne presse, vos vins prennent leur temps.'
+      : enCave.length ? '' : 'Passez par l\'onglet <b>Ajouter</b> — à la voix, c\'est encore mieux.';
+    $('#liste-cave').innerHTML = `<div class="vide"><div class="gros">${enCave.length ? 'Rien ne correspond' : vide}</div>${enCave.length && filtreMaturite !== 'aboire' ? '' : sous}</div>`;
+    return;
+  }
+
+  // Filtre « À boire » : liste à plat triée par priorité de dégustation
+  if (catCave === 'vin' && filtreMaturite === 'aboire') {
+    const liste = visibles.slice().sort((a, z) =>
+      (PRIO_DEGUSTATION[maturite(a).code] - PRIO_DEGUSTATION[maturite(z).code])
+      || (a.gardeA || 9999) - (z.gardeA || 9999));
+    const nbB = liste.reduce((s, b) => s + b.qty, 0);
+    $('#liste-cave').innerHTML = `<div class="groupe-region">🍷 À boire maintenant <small>${nbB} BTL</small></div>` +
+      liste.map(carteHTML).join('');
+    $('#liste-cave').querySelectorAll('.carte').forEach((c) => c.onclick = () => ouvrirFiche(c.dataset.id));
     return;
   }
 
