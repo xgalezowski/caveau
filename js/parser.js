@@ -113,7 +113,9 @@ const MOTS_SPIRIT = {
   rhum: 'Rhum', rum: 'Rhum', gin: 'Gin', cognac: 'Cognac', armagnac: 'Armagnac',
   calvados: 'Calvados', 'eau-de-vie': 'Eau-de-vie', 'eau de vie': 'Eau-de-vie',
   vodka: 'Vodka', tequila: 'Tequila / Mezcal', mezcal: 'Tequila / Mezcal',
-  liqueur: 'Liqueur', chartreuse: 'Liqueur', pastis: 'Liqueur',
+  liqueur: 'Liqueur', chartreuse: 'Liqueur',
+  pastis: 'Anisé', ricard: 'Anisé', pernod: 'Anisé', ouzo: 'Anisé', arak: 'Anisé',
+  raki: 'Anisé', absinthe: 'Anisé', sambuca: 'Anisé', 'anisé': 'Anisé', anise: 'Anisé',
 };
 const PAYS_SPIRIT = {
   'Whisky': 'Écosse', 'Cognac': 'France', 'Armagnac': 'France', 'Calvados': 'France',

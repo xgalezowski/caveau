@@ -17,6 +17,11 @@ let occasion = 'weekend';
 let aAjouter = []; // bouteilles en attente de confirmation
 let catCave = 'vin';
 let catAjout = 'vin';
+let filtreTypeSpirit = null;
+let filtreOuvert = null; // null | 'ouverte' | 'fermee'
+
+// Une bouteille de spiritueux est « ouverte » dès que son niveau est entamé
+const estOuverte = (b) => b.niveau != null && b.niveau < 100;
 
 // Le sommelier et la roulette ne piochent que dans les vins
 const vinsSeuls = (bottles) => bottles.filter((b) => b.categorie !== 'spiritueux');
@@ -147,17 +152,39 @@ function rendreCave() {
     rendreCave();
   };
 
-  // Filtres couleur (vins uniquement)
-  $('#filtres-couleur').innerHTML = catCave === 'vin' ? ['toutes', ...COULEURS].map((c) =>
-    `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
-  ).join('') : '';
-  $('#filtres-couleur').querySelectorAll('.puce').forEach((p) => p.onclick = () => {
-    filtreCouleur = p.dataset.c === 'toutes' ? null : p.dataset.c;
-    rendreCave();
-  });
+  // Filtres : couleur pour les vins · type + ouverte/fermée pour les spiritueux
+  if (catCave === 'vin') {
+    $('#filtres-couleur').innerHTML = ['toutes', ...COULEURS].map((c) =>
+      `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
+    ).join('');
+    $('#filtres-couleur').querySelectorAll('.puce').forEach((p) => p.onclick = () => {
+      filtreCouleur = p.dataset.c === 'toutes' ? null : p.dataset.c;
+      rendreCave();
+    });
+  } else {
+    const typesPresents = [...new Set(enCave.map((b) => b.type || 'Autre'))].sort((a, z) => a.localeCompare(z, 'fr'));
+    $('#filtres-couleur').innerHTML =
+      `<button class="puce ${!filtreTypeSpirit ? 'actif' : ''}" data-t="__tous">Tous</button>` +
+      typesPresents.map((t) => `<button class="puce ${filtreTypeSpirit === t ? 'actif' : ''}" data-t="${esc(t)}">${esc(t)}</button>`).join('') +
+      `<button class="puce ${filtreOuvert === 'ouverte' ? 'actif' : ''}" data-o="ouverte" style="margin-left:10px">🔓 Ouvertes</button>` +
+      `<button class="puce ${filtreOuvert === 'fermee' ? 'actif' : ''}" data-o="fermee">🔒 Fermées</button>`;
+    $('#filtres-couleur').querySelectorAll('[data-t]').forEach((p) => p.onclick = () => {
+      filtreTypeSpirit = p.dataset.t === '__tous' ? null : p.dataset.t;
+      rendreCave();
+    });
+    $('#filtres-couleur').querySelectorAll('[data-o]').forEach((p) => p.onclick = () => {
+      filtreOuvert = filtreOuvert === p.dataset.o ? null : p.dataset.o;
+      rendreCave();
+    });
+  }
 
   let visibles = enCave;
   if (catCave === 'vin' && filtreCouleur) visibles = visibles.filter((b) => b.couleur === filtreCouleur);
+  if (catCave === 'spiritueux') {
+    if (filtreTypeSpirit) visibles = visibles.filter((b) => (b.type || 'Autre') === filtreTypeSpirit);
+    if (filtreOuvert === 'ouverte') visibles = visibles.filter(estOuverte);
+    if (filtreOuvert === 'fermee') visibles = visibles.filter((b) => !estOuverte(b));
+  }
   if (recherche) visibles = visibles.filter((b) =>
     `${b.nom} ${b.domaine || ''} ${b.appellation || ''} ${b.region || ''} ${b.type || ''} ${b.millesime || ''}`.toLowerCase().includes(recherche));
 
@@ -193,6 +220,7 @@ function carteHTML(b) {
       <div class="carte-corps">
         <div class="carte-nom">${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
         <div class="carte-meta">${esc(b.type || 'Spiritueux')}${b.age ? ` · ${b.age} ans` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
+        ${estOuverte(b) ? `<span class="cachet ${b.niveau <= 25 ? 'cachet-urgent' : 'cachet-approche'}">${b.niveau <= 25 ? '⚡ À finir' : '🔓 Ouverte'} · ${b.niveau} %</span>` : ''}
       </div>
       <div class="carte-fin"><div class="carte-qty">×<b>${b.qty}</b></div></div>
     </div>`;
@@ -331,6 +359,10 @@ function ouvrirFicheSpirit(b) {
       <div style="flex:.7"><label>Prix (€)</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
       <div style="flex:.7"><label>Qté</label><input id="f-qty" type="number" min="0" value="${b.qty}"></div>
     </div>
+    <div class="bloc-niveau">
+      <label>Niveau restant : <b id="f-niveau-val">${b.niveau ?? 100} %</b><span id="f-niveau-alerte" style="color:var(--rouge-vif)">${(b.niveau ?? 100) <= 25 ? ' — à finir en priorité !' : ''}</span></label>
+      <input id="f-niveau" type="range" min="0" max="100" step="5" value="${b.niveau ?? 100}">
+    </div>
     ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
     <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
     <div class="ligne" style="align-items:flex-end;margin-top:0">
@@ -360,10 +392,16 @@ function ouvrirFicheSpirit(b) {
       format: $('#f-format').value,
       prix: parseFloat($('#f-prix').value) || null,
       qty: Math.max(0, parseInt($('#f-qty').value) || 0),
+      niveau: parseInt($('#f-niveau').value),
       maNote: Math.min(100, Math.max(1, parseInt($('#f-manote').value))) || null,
       notes: $('#f-notes').value,
     });
     montrerFeuille(false); rendre(ecranActif); toast('Fiche mise à jour');
+  };
+  $('#f-niveau').oninput = () => {
+    const v = parseInt($('#f-niveau').value);
+    $('#f-niveau-val').textContent = `${v} %`;
+    $('#f-niveau-alerte').textContent = v <= 25 && v > 0 ? ' — à finir en priorité !' : '';
   };
   $('#f-sortir').onclick = () => {
     store.sortirBouteille(id, '', '');
@@ -648,12 +686,19 @@ function rendreApercuSpirit() {
         <div style="flex:.8"><label>Prix (€)</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
         <div style="flex:.7"><label>Qté</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
       </div>
+      <div class="bloc-niveau">
+        <label>Niveau restant : <b class="niveau-val">${b.niveau ?? 100} %</b> <small style="color:var(--creme-45)">(déjà ouverte ? ajustez)</small></label>
+        <input data-k="niveau" type="range" min="0" max="100" step="5" value="${b.niveau ?? 100}">
+      </div>
       <p class="statut-enrich">${esc(b.prixInfo || '')}</p>
       <div class="ligne"><div style="flex:1"><label>Fiche</label><textarea data-k="description" rows="3" placeholder="Distillerie, profil aromatique… (remplie automatiquement si clé IA)">${esc(b.description || '')}</textarea></div></div>
     </div>`).join('') +
     `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
     <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée (${aAjouter.length})</button>`;
   brancherSelectsRegion($('#apercu-ajout'));
+  $('#apercu-ajout').querySelectorAll('[data-k="niveau"]').forEach((r) => r.oninput = () => {
+    r.closest('.bloc-niveau').querySelector('.niveau-val').textContent = `${r.value} %`;
+  });
   enrichirApercu();
   $('#btn-confirmer-ajout').onclick = confirmerAjout;
 }
@@ -708,7 +753,9 @@ function confirmerAjout() {
     const b = aAjouter[+el.dataset.i];
     el.querySelectorAll('[data-k]').forEach((inp) => {
       const k = inp.dataset.k;
-      b[k] = inp.type === 'number' ? (parseFloat(inp.value) || (k === 'qty' ? 1 : null)) : inp.value;
+      b[k] = inp.type === 'range' ? parseInt(inp.value)
+        : inp.type === 'number' ? (parseFloat(inp.value) || (k === 'qty' ? 1 : null))
+        : inp.value;
     });
     if (b.categorie !== 'spiritueux') {
       // recalcule la garde si région/millésime ont changé
@@ -853,14 +900,15 @@ function compterVeille(w, bottles) {
 function alertesActuelles() {
   const { bottles, watches } = store.get();
   const basses = watches.map((w) => ({ w, n: compterVeille(w, bottles) })).filter((x) => x.n <= x.w.seuil);
-  const urgentes = bottles.filter((b) => b.qty > 0 && maturite(b).code === 'urgent');
+  const urgentes = bottles.filter((b) => b.categorie !== 'spiritueux' && b.qty > 0 && maturite(b).code === 'urgent');
+  const aFinir = bottles.filter((b) => b.categorie === 'spiritueux' && b.qty > 0 && b.niveau != null && b.niveau > 0 && b.niveau <= 25);
   const epuisees = bottles.filter((b) => b.qty === 0 && (b.sorties || []).length > 0).slice(-5);
-  return { basses, urgentes, epuisees };
+  return { basses, urgentes, aFinir, epuisees };
 }
 
 function majBadgeAlertes() {
-  const { basses, urgentes } = alertesActuelles();
-  const n = basses.length + urgentes.length;
+  const { basses, urgentes, aFinir } = alertesActuelles();
+  const n = basses.length + urgentes.length + aFinir.length;
   const badge = $('#badge-alertes');
   badge.hidden = n === 0;
   badge.textContent = n;
@@ -868,12 +916,18 @@ function majBadgeAlertes() {
 
 function rendreAlertes() {
   const { bottles } = store.get();
-  const { basses, urgentes, epuisees } = alertesActuelles();
+  const { basses, urgentes, aFinir, epuisees } = alertesActuelles();
   let html = '';
 
-  if (!basses.length && !urgentes.length && !epuisees.length) {
+  if (!basses.length && !urgentes.length && !aFinir.length && !epuisees.length) {
     html = '<div class="vide"><div class="gros">Tout va bien à la cave</div>Créez des veilles ci-dessous pour être prévenu quand un segment s\'épuise.</div>';
   }
+  aFinir.forEach((b) => {
+    html += `<div class="alerte"><div>🥃</div><div style="flex:1">
+      <div class="alerte-titre">À finir en priorité : ${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
+      <div class="alerte-detail">Il ne reste que ${b.niveau} % de la bouteille — un spiritueux ouvert s'oxyde, finissez-la avant d'en ouvrir une autre.</div>
+    </div></div>`;
+  });
   urgentes.forEach((b) => {
     html += `<div class="alerte"><div>⏳</div><div style="flex:1">
       <div class="alerte-titre">${esc(b.nom)} ${b.millesime || ''} — à boire vite</div>

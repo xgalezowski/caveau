@@ -5,7 +5,7 @@
 export const COULEURS = ['rouge', 'blanc', 'rosé', 'effervescent', 'moelleux'];
 export const FORMATS = ['37,5 cl', '50 cl', '75 cl', 'Magnum 1,5 L', 'Jéroboam 3 L', 'Autre'];
 
-export const TYPES_SPIRITUEUX = ['Whisky', 'Rhum', 'Gin', 'Cognac', 'Armagnac', 'Calvados', 'Eau-de-vie', 'Vodka', 'Tequila / Mezcal', 'Liqueur', 'Autre'];
+export const TYPES_SPIRITUEUX = ['Whisky', 'Rhum', 'Gin', 'Cognac', 'Armagnac', 'Calvados', 'Eau-de-vie', 'Vodka', 'Tequila / Mezcal', 'Anisé', 'Liqueur', 'Autre'];
 
 // Fenêtres de garde par défaut (années après le millésime) : [début apogée, fin apogée]
 export const GARDE = {
