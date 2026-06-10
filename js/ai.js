@@ -61,7 +61,7 @@ function extraireJSON(texte) {
 
 /* ─── Lecture d'étiquette (photo) ─── */
 
-const PROMPT_ETIQUETTE = 'Voici une étiquette de bouteille de vin. Réponds UNIQUEMENT avec un JSON : {"nom": string, "domaine": string|null, "appellation": string|null, "region": string|null, "couleur": "rouge"|"blanc"|"rosé"|"effervescent"|"moelleux"|null, "millesime": number|null, "cepages": string[]}. Région parmi : Bordeaux, Bourgogne, Rhône Nord, Rhône Sud, Loire, Alsace, Champagne, Beaujolais, Languedoc, Provence, Sud-Ouest, Jura, Savoie, Corse, Italie, Espagne, Monde.';
+const PROMPT_ETIQUETTE = 'Voici une étiquette de bouteille de vin. Réponds UNIQUEMENT avec un JSON : {"nom": string, "domaine": string|null, "appellation": string|null, "pays": string|null, "region": string|null, "couleur": "rouge"|"blanc"|"rosé"|"effervescent"|"moelleux"|null, "millesime": number|null, "cepages": string[], "alcool": number|null}. Pour les vins français, région parmi : Bordeaux, Bourgogne, Rhône Nord, Rhône Sud, Loire, Alsace, Champagne, Beaujolais, Languedoc, Provence, Sud-Ouest, Jura, Savoie, Corse ; sinon la région réelle du pays (ex : Toscane, Rioja, Napa Valley). "alcool" = degré en % vol si lisible.';
 
 export async function analyserEtiquette(apiKey, base64, mediaType) {
   let texte;
@@ -90,10 +90,12 @@ export async function analyserEtiquette(apiKey, base64, mediaType) {
 export async function enrichirBouteille(apiKey, b) {
   const libelle = [b.nom, b.domaine, b.appellation || b.region, b.couleur, b.millesime]
     .filter(Boolean).join(' ');
-  const consigne = 'Tu es un caviste documentaliste. Pour le vin demandé, donne :\n' +
-    '1. "prix" : le prix boutique actuel TTC en euros (cherche sur wine-searcher, idealwine, vinatis, sites de domaines…). Si tu ne trouves pas de prix fiable pour ce vin précis (ou ce millésime), mets null — n\'invente JAMAIS.\n' +
+  const consigne = 'Tu es un caviste documentaliste. Pour le vin demandé, cherche sur le web et donne :\n' +
+    '1. "prix" : le prix boutique actuel TTC en euros (wine-searcher, idealwine, vinatis, sites de domaines…). Si tu ne trouves pas de prix fiable pour ce vin précis (ou ce millésime), mets null — n\'invente JAMAIS.\n' +
     '2. "description" : une fiche de 60 à 100 mots en français : domaine, cépages, style, arômes, accords, potentiel de garde. Si le vin est introuvable, décris l\'appellation et mets "generique": true.\n' +
-    'Réponds UNIQUEMENT en JSON : {"prix": number|null, "description": string, "generique": boolean}';
+    '3. "noteVivino" : la note moyenne Vivino sur 5 de ce vin (cherche « [nom du vin] vivino »). null si introuvable — n\'invente JAMAIS.\n' +
+    '4. Les champs d\'identité s\'ils sont vérifiables : "pays", "appellation", "domaine" (producteur), "cepages" (string, séparés par des virgules), "alcool" (degré % vol). null si incertain.\n' +
+    'Réponds UNIQUEMENT en JSON : {"prix": number|null, "description": string, "generique": boolean, "noteVivino": number|null, "pays": string|null, "appellation": string|null, "domaine": string|null, "cepages": string|null, "alcool": number|null}';
   let texte;
   let viaWeb = false;
   if (fournisseur(apiKey) === 'gemini') {
@@ -104,6 +106,8 @@ export async function enrichirBouteille(apiKey, b) {
   }
   const r = extraireJSON(texte);
   const prix = typeof r.prix === 'number' && r.prix > 0 ? Math.round(r.prix * 10) / 10 : null;
+  const noteVivino = typeof r.noteVivino === 'number' && r.noteVivino > 0 && r.noteVivino <= 5
+    ? Math.round(r.noteVivino * 10) / 10 : null;
   return {
     prix,
     prixInfo: prix
@@ -111,6 +115,12 @@ export async function enrichirBouteille(apiKey, b) {
       : 'Prix introuvable sur le web — à compléter si vous le connaissez',
     description: r.description || null,
     generique: !!r.generique,
+    noteVivino,
+    pays: r.pays || null,
+    appellation: r.appellation || null,
+    domaine: r.domaine || null,
+    cepages: r.cepages || null,
+    alcool: typeof r.alcool === 'number' ? r.alcool : null,
   };
 }
 

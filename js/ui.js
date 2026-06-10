@@ -4,7 +4,7 @@
 import { store } from './store.js';
 import { parseTexte, parseLigne } from './parser.js';
 import { recommander, surprise, argumentaire } from './sommelier.js';
-import { REGIONS, COULEURS, maturite, gardeParDefaut } from './wine-data.js';
+import { REGIONS, COULEURS, PAYS, FORMATS, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
 import { analyserEtiquette, sommelierPlus, equivalents, enrichirBouteille } from './ai.js';
 
@@ -31,6 +31,33 @@ function rendre(nom) {
   if (nom === 'stats') rendreStats();
   if (nom === 'sommelier') rendreSommelierPlus();
   majBadgeAlertes();
+}
+
+/* ═══ Sélecteurs réutilisables ═══ */
+// Régions connues = référentiel + régions déjà en cave + valeur courante,
+// avec une option « ➕ Autre… » pour créer une région à la volée.
+function optionsRegion(selection) {
+  const connues = [...new Set([...REGIONS, ...store.get().bottles.map((b) => b.region), selection])]
+    .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
+  return connues.map((r) => `<option ${r === selection ? 'selected' : ''}>${esc(r)}</option>`).join('') +
+    '<option value="__autre">➕ Autre région…</option>';
+}
+function brancherSelectsRegion(racine) {
+  racine.querySelectorAll('select[data-region]').forEach((sel) => {
+    sel.onchange = () => {
+      if (sel.value !== '__autre') return;
+      const nom = (prompt('Nom de la nouvelle région :') || '').trim();
+      if (nom) {
+        const opt = document.createElement('option');
+        opt.textContent = nom; opt.selected = true;
+        sel.insertBefore(opt, sel.querySelector('option[value="__autre"]'));
+      } else sel.selectedIndex = 0;
+    };
+  });
+}
+function optionsListe(liste, selection) {
+  const tout = [...new Set([...liste, selection])].filter(Boolean);
+  return tout.map((x) => `<option ${x === selection ? 'selected' : ''}>${esc(x)}</option>`).join('');
 }
 
 /* ═══ Toast ═══ */
@@ -97,7 +124,7 @@ function carteHTML(b) {
     <div class="carte-couleur c-${b.couleur}"></div>
     <div class="carte-corps">
       <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
-      <div class="carte-meta">${esc(b.appellation || b.region)}${b.prix ? ` · ${b.prix} €` : ''}</div>
+      <div class="carte-meta">${esc(b.appellation || b.region)}${b.prix ? ` · ${b.prix} €` : ''}${b.noteVivino ? ` · <span class="note-viv">★ ${String(b.noteVivino).replace('.', ',')}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
       <span class="cachet cachet-${m.code}">${m.label}</span>
     </div>
     <div class="carte-fin"><div class="carte-qty">×<b>${b.qty}</b></div></div>
@@ -113,14 +140,20 @@ function ouvrirFiche(id) {
     <h3>${esc(b.nom)} ${b.millesime ? `<em style="color:var(--or-clair)">${b.millesime}</em>` : ''}</h3>
     <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.domaine || '')}
       <span class="cachet cachet-${m.code}">${m.label}</span>
+      ${b.noteVivino ? `<span class="note-viv" style="margin-left:6px">★ ${String(b.noteVivino).replace('.', ',')}/5 Vivino</span>` : ''}
       ${b.gardeDe ? `<span style="margin-left:6px">garde ${b.gardeDe}–${b.gardeA}</span>` : ''}</p>
     <div class="ligne">
-      <div style="flex:2"><label>Nom</label><input id="f-nom" value="${esc(b.nom)}"></div>
+      <div style="flex:2"><label>Nom / cuvée</label><input id="f-nom" value="${esc(b.nom)}"></div>
       <div style="flex:1"><label>Millésime</label><input id="f-mil" type="number" value="${b.millesime || ''}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1"><label>Région</label><select id="f-region">${REGIONS.map((r) => `<option ${r === b.region ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
-      <div style="flex:1"><label>Couleur</label><select id="f-couleur">${COULEURS.map((c) => `<option ${c === b.couleur ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div style="flex:1"><label>Domaine / producteur</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
+      <div style="flex:1"><label>Appellation</label><input id="f-appellation" value="${esc(b.appellation || '')}"></div>
+    </div>
+    <div class="ligne">
+      <div style="flex:1"><label>Pays</label><select id="f-pays">${optionsListe(PAYS, b.pays || 'France')}</select></div>
+      <div style="flex:1"><label>Région</label><select id="f-region" data-region>${optionsRegion(b.region)}</select></div>
+      <div style="flex:1"><label>Couleur</label><select id="f-couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
     </div>
     <div class="ligne">
       <div style="flex:1"><label>Prix (€)</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
@@ -128,8 +161,20 @@ function ouvrirFiche(id) {
       <div style="flex:1"><label>Garde de</label><input id="f-gde" type="number" value="${b.gardeDe || ''}"></div>
       <div style="flex:1"><label>à</label><input id="f-gda" type="number" value="${b.gardeA || ''}"></div>
     </div>
+    <div class="ligne">
+      <div style="flex:1.4"><label>Cépages</label><input id="f-cepages" value="${esc(Array.isArray(b.cepages) ? b.cepages.join(', ') : (b.cepages || ''))}"></div>
+      <div style="flex:1"><label>Format</label><select id="f-format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
+      <div style="flex:.7"><label>% vol</label><input id="f-alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+    </div>
     ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
-    <div class="ligne"><div style="flex:1"><label>Notes</label><input id="f-notes" value="${esc(b.notes || '')}"></div></div>
+    <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
+    <div class="ligne" style="align-items:flex-end;margin-top:0">
+      <div style="flex:.6"><label>Ma note /100</label><input id="f-manote" type="number" min="1" max="100" value="${b.maNote ?? ''}" placeholder="—"></div>
+      <div style="flex:2"><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
+      <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes" style="height:46px">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+    </div>
     <div class="actions">
       <button class="btn-or" id="f-sortir" style="flex:1.4">🍷 Je la sors</button>
       <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
@@ -140,17 +185,34 @@ function ouvrirFiche(id) {
     <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
   montrerFeuille(true);
 
+  brancherSelectsRegion($('#feuille'));
   $('#f-save').onclick = () => {
     store.majBouteille(id, {
       nom: $('#f-nom').value.trim() || b.nom,
       millesime: parseInt($('#f-mil').value) || null,
-      region: $('#f-region').value, couleur: $('#f-couleur').value,
+      domaine: $('#f-domaine').value.trim(),
+      appellation: $('#f-appellation').value.trim() || null,
+      pays: $('#f-pays').value, region: $('#f-region').value, couleur: $('#f-couleur').value,
+      cepages: $('#f-cepages').value.trim() || null,
+      format: $('#f-format').value,
+      alcool: parseFloat($('#f-alcool').value) || null,
       prix: parseFloat($('#f-prix').value) || null,
       qty: Math.max(0, parseInt($('#f-qty').value) || 0),
       gardeDe: parseInt($('#f-gde').value) || null, gardeA: parseInt($('#f-gda').value) || null,
+      maNote: Math.min(100, Math.max(1, parseInt($('#f-manote').value))) || null,
       notes: $('#f-notes').value,
     });
     montrerFeuille(false); rendre(ecranActif); toast('Fiche mise à jour');
+  };
+  if (!voixDisponible) $('#f-micro-notes').style.display = 'none';
+  $('#f-micro-notes').onclick = () => {
+    $('#f-micro-notes').classList.add('ecoute');
+    const avant = $('#f-notes').value;
+    dicter({
+      onResult: (txt) => { $('#f-notes').value = (avant ? avant + ' ' : '') + txt; },
+      onEnd: () => $('#f-micro-notes').classList.remove('ecoute'),
+      onError: (msg) => toast(msg),
+    });
   };
   $('#f-sortir').onclick = () => { montrerFeuille(false); dialogueSortie(id); };
   $('#f-suppr').onclick = () => {
@@ -287,22 +349,36 @@ function rendreApercu() {
     <div class="apercu" data-i="${i}">
       <h4>🍾 Bouteille ${aAjouter.length > 1 ? i + 1 : 'détectée'}</h4>
       <div class="ligne">
-        <div style="flex:2"><label>Nom</label><input data-k="nom" value="${esc(b.nom)}"></div>
+        <div style="flex:2"><label>Nom / cuvée</label><input data-k="nom" value="${esc(b.nom)}"></div>
         <div style="flex:.8"><label>Millésime</label><input data-k="millesime" type="number" value="${b.millesime || ''}"></div>
       </div>
       <div class="ligne">
-        <div style="flex:1"><label>Région</label><select data-k="region">${REGIONS.map((r) => `<option ${r === b.region ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
-        <div style="flex:1"><label>Couleur</label><select data-k="couleur">${COULEURS.map((c) => `<option ${c === b.couleur ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+        <div style="flex:1"><label>Domaine / producteur</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
+        <div style="flex:1"><label>Appellation</label><input data-k="appellation" value="${esc(b.appellation || '')}"></div>
+      </div>
+      <div class="ligne">
+        <div style="flex:1"><label>Pays</label><select data-k="pays">${optionsListe(PAYS, b.pays || 'France')}</select></div>
+        <div style="flex:1"><label>Région</label><select data-k="region" data-region>${optionsRegion(b.region)}</select></div>
+        <div style="flex:1"><label>Couleur</label><select data-k="couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
       </div>
       <div class="ligne">
         <div style="flex:1"><label>Prix (€)</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
         <div style="flex:1"><label>Quantité</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
       </div>
+      <details class="plus-details">
+        <summary>Plus de détails (cépages, format, degré…)</summary>
+        <div class="ligne">
+          <div style="flex:1.4"><label>Cépages</label><input data-k="cepages" value="${esc(Array.isArray(b.cepages) ? b.cepages.join(', ') : (b.cepages || ''))}" placeholder="grenache, syrah…"></div>
+          <div style="flex:1"><label>Format</label><select data-k="format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
+          <div style="flex:.7"><label>% vol</label><input data-k="alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+        </div>
+      </details>
       <p class="statut-enrich">${esc(b.prixInfo || '')}</p>
       <div class="ligne"><div style="flex:1"><label>Fiche du vin</label><textarea data-k="description" rows="3" placeholder="Description, arômes, accords… (remplie automatiquement si clé IA)">${esc(b.description || '')}</textarea></div></div>
     </div>`).join('') +
     `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
     <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée en cave (${aAjouter.length})</button>`;
+  brancherSelectsRegion($('#apercu-ajout'));
   enrichirApercu();
 
   $('#btn-confirmer-ajout').onclick = confirmerAjout;
@@ -324,14 +400,23 @@ async function enrichirApercu() {
     try {
       const r = await enrichirBouteille(apiKey, b);
       if (lot !== aAjouter) return;
-      b.description = r.description; b.prixInfo = r.prixInfo;
+      b.description = r.description; b.prixInfo = r.prixInfo; b.noteVivino = r.noteVivino;
       const el = carte();
       if (el) {
         const prixInput = el.querySelector('[data-k="prix"]');
         if (r.prix != null && prixInput && prixInput.value === '') { prixInput.value = r.prix; b.prix = r.prix; }
+        // Complète les champs d'identité trouvés sur le web — jamais ceux déjà remplis
+        for (const k of ['pays', 'appellation', 'domaine', 'cepages', 'alcool']) {
+          const inp = el.querySelector(`[data-k="${k}"]`);
+          if (r[k] != null && inp && !inp.value) {
+            if (inp.tagName === 'SELECT' && ![...inp.options].some((o) => o.value === String(r[k]))) continue;
+            inp.value = r[k]; b[k] = r[k];
+          }
+        }
         const desc = el.querySelector('[data-k="description"]');
         if (desc && !desc.value) desc.value = r.description || '';
-        statut(`${r.prix != null ? '✅' : '⚠️'} ${r.prixInfo}${r.generique ? ' · fiche générique d\'appellation' : ''}`);
+        const vivino = r.noteVivino ? ` · ★ ${String(r.noteVivino).replace('.', ',')}/5 sur Vivino` : ' · note Vivino introuvable';
+        statut(`${r.prix != null ? '✅' : '⚠️'} ${r.prixInfo}${vivino}${r.generique ? ' · fiche générique d\'appellation' : ''}`);
       }
     } catch (e) {
       statut(`⚠️ Recherche web impossible (${e.message})`);

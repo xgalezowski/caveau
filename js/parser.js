@@ -2,7 +2,7 @@
 // « 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€ » → objet bouteille.
 // Module pur, testable sous Node.
 
-import { APPELLATIONS, REGIONS, gardeParDefaut } from './wine-data.js';
+import { APPELLATIONS, REGIONS, gardeParDefaut, paysParDefaut } from './wine-data.js';
 
 const COULEUR_MOTS = {
   rouge: 'rouge', blanc: 'blanc', 'rosé': 'rosé', rose: 'rosé',
@@ -56,7 +56,7 @@ export function parseLigne(ligne) {
     }
   }
   if (meilleure) {
-    b.appellation = meilleure.app.replace(/\b\w/g, (c) => c.toUpperCase());
+    b.appellation = meilleure.app.replace(/(^|[\s-])([a-zà-ÿ])/g, (m, p, c) => p + c.toUpperCase());
     b.region = meilleure.info.r;
     if (!b.couleur) b.couleur = meilleure.info.c;
   }
@@ -70,6 +70,7 @@ export function parseLigne(ligne) {
 
   if (!b.couleur) b.couleur = 'rouge'; // défaut statistique d'une cave française
   if (!b.region) b.region = 'Monde';
+  b.pays = paysParDefaut(b.region);
 
   // Nom : ce qui reste, nettoyé des mots outils
   // Mots-outils retirés seulement s'ils sont entourés d'espaces (pas dans

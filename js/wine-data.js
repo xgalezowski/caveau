@@ -24,6 +24,13 @@ export const GARDE = {
   'Monde':           { rouge: [3, 12], blanc: [1, 6],  'rosé': [1, 2], effervescent: [1, 5], moelleux: [3, 15] },
 };
 export const REGIONS = Object.keys(GARDE);
+export const PAYS = ['France', 'Italie', 'Espagne', 'Portugal', 'Allemagne', 'Suisse', 'Autriche', 'États-Unis', 'Argentine', 'Chili', 'Afrique du Sud', 'Australie', 'Nouvelle-Zélande', 'Autre'];
+export const FORMATS = ['37,5 cl', '50 cl', '75 cl', 'Magnum 1,5 L', 'Jéroboam 3 L', 'Autre'];
+// Pays implicite de certaines « régions » du référentiel
+export const PAYS_PAR_REGION = { 'Italie': 'Italie', 'Espagne': 'Espagne', 'Monde': null };
+export function paysParDefaut(region) {
+  return region in PAYS_PAR_REGION ? PAYS_PAR_REGION[region] : 'France';
+}
 const DEFAUT_GARDE = { rouge: [3, 10], blanc: [1, 5], 'rosé': [1, 2], effervescent: [1, 5], moelleux: [3, 15] };
 
 // Corps du vin par région/couleur : 1 léger · 2 moyen · 3 puissant

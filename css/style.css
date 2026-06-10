@@ -245,6 +245,15 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 .apercu input, .apercu select, .apercu textarea { padding: 9px 11px; font-size: 14px; }
 .statut-enrich { font-size: 12px; color: var(--or-clair); margin: 2px 2px 8px; min-height: 15px; }
 .statut-enrich:empty { display: none; }
+.note-viv { color: var(--or-clair); font-weight: 700; white-space: nowrap; }
+.note-moi { color: var(--vert); font-weight: 700; white-space: nowrap; }
+.plus-details { margin: 2px 0 8px; }
+.plus-details summary {
+  font-size: 12px; color: var(--creme-45); cursor: pointer; padding: 6px 2px;
+  list-style: none;
+}
+.plus-details summary::before { content: '▸ '; color: var(--or); }
+.plus-details[open] summary::before { content: '▾ '; }
 
 /* ─── Sommelier résultats ─── */
 .reco {
