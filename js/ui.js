@@ -429,17 +429,14 @@ function initAjouter() {
   const aideMicro = () => catAjout === 'spiritueux'
     ? 'Touchez et dictez : « une bouteille de whisky Lagavulin seize ans, quatre-vingts euros »'
     : 'Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »';
-  // Texte, voix et photo sont communs aux vins et aux spiritueux ;
-  // le mode « 📋 Fiche » (formulaire) n'existe que pour les spiritueux.
+  // Texte, voix, photo et fiche (formulaire) sont disponibles pour les vins
+  // comme pour les spiritueux — le formulaire affiché dépend de la catégorie.
   const montrerModes = () => {
-    $('#modes-ajout [data-mode="forme"]').hidden = catAjout !== 'spiritueux';
-    let actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'texte';
-    if (actif === 'forme' && catAjout === 'vin') {
-      actif = 'texte';
-      $('#modes-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x.dataset.mode === 'texte'));
-    }
+    $('#modes-ajout [data-mode="forme"]').hidden = false;
+    const actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'texte';
     ['texte', 'voix', 'photo'].forEach((m) => { $(`#panneau-${m}`).hidden = m !== actif; });
     $('#panneau-spiritueux').hidden = !(catAjout === 'spiritueux' && actif === 'forme');
+    $('#panneau-fiche-vin').hidden = !(catAjout === 'vin' && actif === 'forme');
     $('#saisie-texte').placeholder = catAjout === 'spiritueux'
       ? 'Ex : Ardbeg Uigeadail whisky 54,2%, 80€\n2 bouteilles de rhum Clément XO\nGin Monkey 47, 45€'
       : 'Ex : 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€\nSancerre blanc 2022, 18 euros\nChampagne Bollinger, x2';
@@ -457,6 +454,30 @@ function initAjouter() {
   });
   if (!voixDisponible) $('#modes-ajout [data-mode="voix"]').style.display = 'none';
   const rendreApercuCourant = () => catAjout === 'spiritueux' ? rendreApercuSpirit() : rendreApercu();
+
+  // Formulaire vin
+  $('#fv-pays').innerHTML = optionsPays('France');
+  $('#fv-region').innerHTML = optionsRegion('Bordeaux', 'France');
+  $('#fv-couleur').innerHTML = optionsListe(COULEURS, 'rouge');
+  brancherSelectsRegion($('#panneau-fiche-vin'));
+  $('#btn-analyser-fiche-vin').onclick = () => {
+    const nom = $('#fv-nom').value.trim();
+    const appellation = $('#fv-appellation').value.trim();
+    if (!nom && !appellation) return toast('Indiquez au moins le nom ou l\'appellation');
+    const millesime = parseInt($('#fv-mil').value) || null;
+    const region = $('#fv-region').value;
+    const couleur = $('#fv-couleur').value;
+    aAjouter = [{
+      nom: nom || appellation,
+      domaine: $('#fv-domaine').value.trim(),
+      appellation: appellation || null,
+      pays: $('#fv-pays').value, region, couleur, millesime,
+      prix: parseFloat($('#fv-prix').value) || null,
+      qty: parseInt($('#fv-qty').value) || 1,
+      ...gardeParDefaut(region, couleur, millesime),
+    }];
+    rendreApercu();
+  };
 
   // Formulaire spiritueux
   $('#sp-type').innerHTML = optionsListe(TYPES_SPIRITUEUX, 'Whisky');

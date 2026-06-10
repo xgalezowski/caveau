@@ -52,7 +52,7 @@
       <button class="seg actif" data-mode="texte">✍️ Texte</button>
       <button class="seg" data-mode="voix">🎙️ Voix</button>
       <button class="seg" data-mode="photo">📷 Photo</button>
-      <button class="seg" data-mode="forme" hidden>📋 Fiche</button>
+      <button class="seg" data-mode="forme">📋 Fiche</button>
     </div>
 
     <div class="mode-panneau" id="panneau-texte">
@@ -76,6 +76,27 @@
         <input type="file" id="input-photo" accept="image/*" multiple hidden>
       </label>
       <p class="note-ia" id="note-photo-ia"></p>
+    </div>
+
+    <div class="mode-panneau" id="panneau-fiche-vin" hidden>
+      <div class="ligne-form">
+        <div style="flex:1.6"><label>Nom / cuvée</label><input id="fv-nom" placeholder="Château Sociando-Mallet…"></div>
+        <div style="flex:.7"><label>Millésime</label><input id="fv-mil" type="number" placeholder="2019"></div>
+      </div>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Domaine / producteur</label><input id="fv-domaine"></div>
+        <div style="flex:1"><label>Appellation</label><input id="fv-appellation" placeholder="Haut-Médoc…"></div>
+      </div>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Pays</label><select id="fv-pays" data-pays></select></div>
+        <div style="flex:1"><label>Région</label><select id="fv-region" data-region></select></div>
+        <div style="flex:1"><label>Couleur</label><select id="fv-couleur"></select></div>
+      </div>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Prix (€)</label><input id="fv-prix" type="number" step="0.5"></div>
+        <div style="flex:1"><label>Quantité</label><input id="fv-qty" type="number" min="1" value="1"></div>
+      </div>
+      <button class="btn-or" id="btn-analyser-fiche-vin">Analyser</button>
     </div>
 
     <div class="mode-panneau" id="panneau-spiritueux" hidden>
