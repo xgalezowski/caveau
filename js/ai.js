@@ -88,6 +88,7 @@ export async function analyserEtiquette(apiKey, base64, mediaType) {
    { prix: number|null, prixInfo: string, description: string|null }            */
 
 export async function enrichirBouteille(apiKey, b) {
+  if (b.categorie === 'spiritueux') return enrichirSpiritueux(apiKey, b);
   const libelle = [b.nom, b.domaine, b.appellation || b.region, b.couleur, b.millesime]
     .filter(Boolean).join(' ');
   const consigne = 'Tu es un caviste documentaliste. Pour le vin demandé, cherche sur le web et donne :\n' +
@@ -124,12 +125,47 @@ export async function enrichirBouteille(apiKey, b) {
   };
 }
 
+// Variante spiritueux : prix, fiche distillerie/profil, note communautaire
+// (Whiskybase, Distiller, Rum Ratings… selon le type).
+async function enrichirSpiritueux(apiKey, b) {
+  const libelle = [b.type, b.domaine, b.nom, b.age ? b.age + ' ans' : null, b.alcool ? b.alcool + '%' : null]
+    .filter(Boolean).join(' ');
+  const consigne = 'Tu es un caviste spécialiste des spiritueux. Pour la bouteille demandée, cherche sur le web et donne :\n' +
+    '1. "prix" : le prix boutique actuel TTC en euros. Si introuvable pour cette bouteille précise, mets null — n\'invente JAMAIS.\n' +
+    '2. "description" : une fiche de 60 à 100 mots en français : distillerie/maison, élaboration (fûts, finitions), profil aromatique (nez, bouche, finale).\n' +
+    '3. "noteWeb" : la note communautaire de référence avec sa source (ex : "87/100 sur Whiskybase", "3,8/5 sur Distiller", "8,2/10 sur RumX"). null si introuvable — n\'invente JAMAIS.\n' +
+    '4. "alcool" : degré % vol si vérifiable, sinon null.\n' +
+    'Réponds UNIQUEMENT en JSON : {"prix": number|null, "description": string, "noteWeb": string|null, "alcool": number|null}';
+  let texte;
+  let viaWeb = false;
+  if (fournisseur(apiKey) === 'gemini') {
+    texte = await appelerGemini(apiKey, [{ text: libelle }], consigne, true);
+    viaWeb = true;
+  } else {
+    texte = await appelerClaude(apiKey, [{ role: 'user', content: libelle }], consigne, 700);
+  }
+  const r = extraireJSON(texte);
+  const prix = typeof r.prix === 'number' && r.prix > 0 ? Math.round(r.prix * 10) / 10 : null;
+  return {
+    prix,
+    prixInfo: prix
+      ? (viaWeb ? `Prix trouvé sur le web : ${prix} €` : `Prix estimé (IA, non vérifié) : ${prix} €`)
+      : 'Prix introuvable sur le web — à compléter si vous le connaissez',
+    description: r.description || null,
+    noteWeb: typeof r.noteWeb === 'string' ? r.noteWeb : null,
+    alcool: typeof r.alcool === 'number' ? r.alcool : null,
+  };
+}
+
 /* ─── Sommelier+ : question libre avec la cave en contexte ─── */
 
 function resumeCave(bottles) {
-  return bottles.filter((b) => b.qty > 0).map((b) =>
-    `- ${b.nom}${b.millesime ? ' ' + b.millesime : ''} (${b.region}, ${b.couleur}${b.prix ? ', ' + b.prix + '€' : ''}, x${b.qty}, garde ${b.gardeDe}–${b.gardeA})${b.description ? ' — ' + b.description.slice(0, 180) : ''}`
-  ).join('\n');
+  return bottles.filter((b) => b.qty > 0).map((b) => {
+    if (b.categorie === 'spiritueux') {
+      return `- [Spiritueux] ${[b.type, b.domaine, b.nom, b.age ? b.age + ' ans' : null].filter(Boolean).join(' ')}${b.prix ? ` (${b.prix}€)` : ''}, x${b.qty}${b.description ? ' — ' + b.description.slice(0, 120) : ''}`;
+    }
+    return `- ${b.nom}${b.millesime ? ' ' + b.millesime : ''} (${b.region}, ${b.couleur}${b.prix ? ', ' + b.prix + '€' : ''}, x${b.qty}, garde ${b.gardeDe}–${b.gardeA})${b.description ? ' — ' + b.description.slice(0, 180) : ''}`;
+  }).join('\n');
 }
 
 export async function sommelierPlus(apiKey, question, bottles) {

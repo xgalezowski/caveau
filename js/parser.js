@@ -46,19 +46,27 @@ export function parseLigne(ligne) {
     if (new RegExp(`\\b${norm(mot)}\\b`).test(resteN)) { b.couleur = c; break; }
   }
 
-  // Appellation connue (la plus longue qui matche, pour « pouilly-fumé » vs « pouilly »)
+  // Appellation connue. Priorité : géographie > cépage (indices « faibles »),
+  // puis la plus longue qui matche (« pouilly-fumé » vs « pouilly »).
+  const FAIBLES = new Set(['riesling', 'gewurztraminer', 'pinot gris', 'pinot blanc', 'sylvaner',
+    'nebbiolo', 'saperavi', 'rkatsiteli', 'albariño', 'assyrtiko', 'xinomavro', 'moschofilero', 'agiorgitiko', 'mondeuse']);
   let meilleure = null;
   for (const [app, info] of Object.entries(APPELLATIONS)) {
     const appN = norm(app).replace(/-/g, '[ -]');
     if (new RegExp(`\\b${appN}\\b`).test(resteN.replace(/-/g, ' ').replace(/\s+/g, ' ')) ||
         new RegExp(`\\b${norm(app)}\\b`).test(resteN)) {
-      if (!meilleure || app.length > meilleure.app.length) meilleure = { app, info };
+      const force = FAIBLES.has(app) ? 0 : 1;
+      const forceM = meilleure ? (FAIBLES.has(meilleure.app) ? 0 : 1) : -1;
+      if (!meilleure || force > forceM || (force === forceM && app.length > meilleure.app.length)) {
+        meilleure = { app, info };
+      }
     }
   }
   if (meilleure) {
     b.appellation = meilleure.app.replace(/(^|[\s-])([a-zà-ÿ])/g, (m, p, c) => p + c.toUpperCase());
     b.region = meilleure.info.r;
-    if (!b.couleur) b.couleur = meilleure.info.c;
+    if (!b.couleur && meilleure.info.c) b.couleur = meilleure.info.c;
+    if (meilleure.info.p) b.pays = meilleure.info.p;
   }
 
   // Région citée directement (« bourgogne », « bordeaux »…)
@@ -70,7 +78,7 @@ export function parseLigne(ligne) {
 
   if (!b.couleur) b.couleur = 'rouge'; // défaut statistique d'une cave française
   if (!b.region) b.region = 'Monde';
-  b.pays = paysParDefaut(b.region);
+  b.pays = b.pays || paysParDefaut(b.region);
 
   // Nom : ce qui reste, nettoyé des mots outils
   // Mots-outils retirés seulement s'ils sont entourés d'espaces (pas dans

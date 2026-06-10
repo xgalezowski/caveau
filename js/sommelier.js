@@ -38,7 +38,7 @@ const PLATS = [
   { k: ['curry', 'thai', 'epice', 'indien', 'colombo', 'tajine', 'couscous'],
     cible: { blanc: 2, 'rosé': 2, rouge: 1, moelleux: 1 }, corps: 2, regions: ['Alsace', 'Rhône Sud', 'Provence'], plat: 'cuisine épicée' },
   { k: ['pizza', 'pates', 'spaghetti', 'lasagne', 'bolognaise', 'italien', 'risotto'],
-    cible: { rouge: 3 }, corps: 2, regions: ['Italie', 'Rhône Sud', 'Languedoc'], plat: 'cuisine italienne' },
+    cible: { rouge: 3 }, corps: 2, regions: ['Toscane', 'Piémont', 'Italie', 'Rhône Sud', 'Languedoc'], plat: 'cuisine italienne' },
   { k: ['raclette', 'fondue', 'tartiflette', 'mont d or'],
     cible: { blanc: 3 }, corps: 1, regions: ['Savoie', 'Jura', 'Alsace'], plat: 'fromage fondu' },
   { k: ['fromage', 'comte', 'plateau de fromages', 'chevre', 'camembert', 'brie', 'roquefort', 'bleu'],

@@ -4,7 +4,7 @@
 import { store } from './store.js';
 import { parseTexte, parseLigne } from './parser.js';
 import { recommander, surprise, argumentaire } from './sommelier.js';
-import { REGIONS, COULEURS, PAYS, FORMATS, maturite, gardeParDefaut } from './wine-data.js';
+import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
 import { analyserEtiquette, sommelierPlus, equivalents, enrichirBouteille } from './ai.js';
 
@@ -15,6 +15,37 @@ let ecranActif = 'cave';
 let filtreCouleur = null;
 let occasion = 'weekend';
 let aAjouter = []; // bouteilles en attente de confirmation
+let catCave = 'vin';
+let catAjout = 'vin';
+
+// Le sommelier et la roulette ne piochent que dans les vins
+const vinsSeuls = (bottles) => bottles.filter((b) => b.categorie !== 'spiritueux');
+
+/* ═══ Voix du caveau : un peu de fantaisie ═══ */
+const alea = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const PHRASES_AJOUT = [
+  'Bouteille ajoutée à votre cave.',
+  'Une pensionnaire de plus au caveau !',
+  'Très belle pioche. Je la couche précieusement.',
+  'C\'est noté ! Votre cave prend de la valeur.',
+  'Entrée en cave. Elle y sera très bien.',
+  'Adoptée ! Je veille sur elle désormais.',
+  'Encore une merveille à l\'abri de la lumière.',
+  'Elle rejoint ses sœurs dans la pénombre. Parfait.',
+];
+const PHRASES_AJOUT_LOT = [
+  (n) => `${n} bouteilles ajoutées à votre cave.`,
+  (n) => `Belle rentrée : ${n} flacons de plus au caveau !`,
+  (n) => `${n} nouvelles pensionnaires. La cave se porte bien.`,
+  (n) => `J'enregistre ${n} bouteilles. Quel arrivage !`,
+];
+const PHRASES_SORTIE = [
+  'Excellent choix. Bonne dégustation !',
+  'Grand moment en perspective. Santé !',
+  'Servez-la à bonne température, elle le mérite.',
+  'Elle quitte la cave la tête haute. Régalez-vous !',
+  'Pensez à la carafer si elle est jeune. Santé !',
+];
 
 /* ═══ Navigation ═══ */
 export function montrerEcran(nom) {
@@ -34,14 +65,26 @@ function rendre(nom) {
 }
 
 /* ═══ Sélecteurs réutilisables ═══ */
-// Régions connues = référentiel + régions déjà en cave + valeur courante,
-// avec une option « ➕ Autre… » pour créer une région à la volée.
-function optionsRegion(selection) {
-  const connues = [...new Set([...REGIONS, ...store.get().bottles.map((b) => b.region), selection])]
+// Régions proposées = celles du pays choisi + régions déjà en cave pour ce
+// pays + valeur courante, avec « ➕ Autre… » pour créer à la volée.
+function optionsRegion(selection, pays) {
+  const duPays = regionsPour(pays);
+  const enCave = store.get().bottles
+    .filter((b) => !pays || b.pays === pays).map((b) => b.region);
+  const base = duPays.length ? [...duPays, ...enCave] : [...REGIONS, ...enCave];
+  const connues = [...new Set([...base, selection])]
     .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
   return connues.map((r) => `<option ${r === selection ? 'selected' : ''}>${esc(r)}</option>`).join('') +
     '<option value="__autre">➕ Autre région…</option>';
 }
+function optionsPays(selection) {
+  const connus = [...new Set([...PAYS, ...store.get().bottles.map((b) => b.pays), selection])]
+    .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
+  return connus.map((p) => `<option ${p === selection ? 'selected' : ''}>${esc(p)}</option>`).join('') +
+    '<option value="__autre">➕ Autre pays…</option>';
+}
+// Branche les couples pays ↔ région d'un conteneur : « Autre… » crée une
+// valeur libre, et changer le pays refiltre la liste des régions.
 function brancherSelectsRegion(racine) {
   racine.querySelectorAll('select[data-region]').forEach((sel) => {
     sel.onchange = () => {
@@ -52,6 +95,22 @@ function brancherSelectsRegion(racine) {
         opt.textContent = nom; opt.selected = true;
         sel.insertBefore(opt, sel.querySelector('option[value="__autre"]'));
       } else sel.selectedIndex = 0;
+    };
+  });
+  racine.querySelectorAll('select[data-pays]').forEach((sel) => {
+    sel.onchange = () => {
+      if (sel.value === '__autre') {
+        const nom = (prompt('Nom du pays :') || '').trim();
+        if (nom) {
+          const opt = document.createElement('option');
+          opt.textContent = nom; opt.selected = true;
+          sel.insertBefore(opt, sel.querySelector('option[value="__autre"]'));
+        } else sel.selectedIndex = 0;
+      }
+      // refiltre la liste des régions du même bloc
+      const zone = sel.closest('.apercu') || sel.closest('.feuille') || racine;
+      const selRegion = zone.querySelector('select[data-region]');
+      if (selRegion) selRegion.innerHTML = optionsRegion(null, sel.value);
     };
   });
 }
@@ -71,47 +130,56 @@ export function toast(msg) {
 
 /* ═══ CAVE ═══ */
 function rendreCave() {
-  const { bottles } = store.get();
-  const enCave = bottles.filter((b) => b.qty > 0);
+  const { bottles, settings } = store.get();
+  const enCave = bottles.filter((b) => b.qty > 0 && (catCave === 'spiritueux') === (b.categorie === 'spiritueux'));
   const recherche = ($('#recherche').value || '').toLowerCase();
 
   const nb = enCave.reduce((s, b) => s + b.qty, 0);
   const valeur = enCave.reduce((s, b) => s + (b.prix || 0) * b.qty, 0);
-  const aBoire = enCave.filter((b) => ['apogee', 'urgent'].includes(maturite(b).code)).reduce((s, b) => s + b.qty, 0);
+  const valeurTxt = settings.valeurCachee ? '•••' : `${Math.round(valeur)} €`;
+  const aBoire = enCave.filter((b) => b.categorie !== 'spiritueux' && ['apogee', 'urgent'].includes(maturite(b).code)).reduce((s, b) => s + b.qty, 0);
   $('#bandeau-valeur').innerHTML = `
     <div><div class="v">${nb}</div><div class="l">bouteilles</div></div>
-    <div><div class="v">${Math.round(valeur)} €</div><div class="l">valeur</div></div>
-    <div><div class="v">${aBoire}</div><div class="l">à boire</div></div>`;
+    <div id="cellule-valeur" title="Toucher pour masquer/afficher"><div class="v">${valeurTxt}</div><div class="l">valeur ${settings.valeurCachee ? '👁' : ''}</div></div>
+    ${catCave === 'vin' ? `<div><div class="v">${aBoire}</div><div class="l">à boire</div></div>` : `<div><div class="v">${enCave.length}</div><div class="l">références</div></div>`}`;
+  $('#cellule-valeur').onclick = () => {
+    store.majSettings({ valeurCachee: !store.get().settings.valeurCachee });
+    rendreCave();
+  };
 
-  // Filtres couleur
-  $('#filtres-couleur').innerHTML = ['toutes', ...COULEURS].map((c) =>
+  // Filtres couleur (vins uniquement)
+  $('#filtres-couleur').innerHTML = catCave === 'vin' ? ['toutes', ...COULEURS].map((c) =>
     `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
-  ).join('');
+  ).join('') : '';
   $('#filtres-couleur').querySelectorAll('.puce').forEach((p) => p.onclick = () => {
     filtreCouleur = p.dataset.c === 'toutes' ? null : p.dataset.c;
     rendreCave();
   });
 
   let visibles = enCave;
-  if (filtreCouleur) visibles = visibles.filter((b) => b.couleur === filtreCouleur);
+  if (catCave === 'vin' && filtreCouleur) visibles = visibles.filter((b) => b.couleur === filtreCouleur);
   if (recherche) visibles = visibles.filter((b) =>
-    `${b.nom} ${b.domaine || ''} ${b.appellation || ''} ${b.region} ${b.millesime || ''}`.toLowerCase().includes(recherche));
+    `${b.nom} ${b.domaine || ''} ${b.appellation || ''} ${b.region || ''} ${b.type || ''} ${b.millesime || ''}`.toLowerCase().includes(recherche));
 
   if (!visibles.length) {
-    $('#liste-cave').innerHTML = `<div class="vide"><div class="gros">${enCave.length ? 'Rien ne correspond' : 'Votre cave est vide'}</div>${enCave.length ? '' : 'Passez par l\'onglet <b>Ajouter</b> — à la voix, c\'est encore mieux.'}</div>`;
+    const vide = catCave === 'vin' ? 'Votre cave est vide' : 'Aucun spiritueux pour l\'instant';
+    $('#liste-cave').innerHTML = `<div class="vide"><div class="gros">${enCave.length ? 'Rien ne correspond' : vide}</div>${enCave.length ? '' : 'Passez par l\'onglet <b>Ajouter</b> — à la voix, c\'est encore mieux.'}</div>`;
     return;
   }
 
-  // Groupé par région, régions triées par valeur décroissante
+  // Vins groupés par région · spiritueux groupés par type
+  const cle = catCave === 'vin' ? 'region' : 'type';
   const groupes = {};
-  visibles.forEach((b) => (groupes[b.region] ??= []).push(b));
-  const regionsTriees = Object.keys(groupes).sort((a, z) =>
+  visibles.forEach((b) => (groupes[b[cle] || 'Autre'] ??= []).push(b));
+  const groupesTries = Object.keys(groupes).sort((a, z) =>
     groupes[z].reduce((s, b) => s + b.qty, 0) - groupes[a].reduce((s, b) => s + b.qty, 0));
 
-  $('#liste-cave').innerHTML = regionsTriees.map((r) => {
-    const liste = groupes[r].sort((a, z) => maturite(a).ordre - maturite(z).ordre);
-    const nbR = liste.reduce((s, b) => s + b.qty, 0);
-    return `<div class="groupe-region">${esc(r)} <small>${nbR} BTL</small></div>` +
+  $('#liste-cave').innerHTML = groupesTries.map((g) => {
+    const liste = catCave === 'vin'
+      ? groupes[g].sort((a, z) => maturite(a).ordre - maturite(z).ordre)
+      : groupes[g].sort((a, z) => (a.nom || '').localeCompare(z.nom || ''));
+    const nbG = liste.reduce((s, b) => s + b.qty, 0);
+    return `<div class="groupe-region">${esc(g)} <small>${nbG} BTL</small></div>` +
       liste.map(carteHTML).join('');
   }).join('');
 
@@ -119,6 +187,16 @@ function rendreCave() {
 }
 
 function carteHTML(b) {
+  if (b.categorie === 'spiritueux') {
+    return `<div class="carte" data-id="${b.id}">
+      <div class="carte-couleur c-spirit"></div>
+      <div class="carte-corps">
+        <div class="carte-nom">${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
+        <div class="carte-meta">${esc(b.type || 'Spiritueux')}${b.age ? ` · ${b.age} ans` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
+      </div>
+      <div class="carte-fin"><div class="carte-qty">×<b>${b.qty}</b></div></div>
+    </div>`;
+  }
   const m = maturite(b);
   return `<div class="carte" data-id="${b.id}">
     <div class="carte-couleur c-${b.couleur}"></div>
@@ -135,6 +213,7 @@ function carteHTML(b) {
 function ouvrirFiche(id) {
   const b = store.get().bottles.find((x) => x.id === id);
   if (!b) return;
+  if (b.categorie === 'spiritueux') { ouvrirFicheSpirit(b); return; }
   const m = maturite(b);
   $('#feuille').innerHTML = `
     <h3>${esc(b.nom)} ${b.millesime ? `<em style="color:var(--or-clair)">${b.millesime}</em>` : ''}</h3>
@@ -151,8 +230,8 @@ function ouvrirFiche(id) {
       <div style="flex:1"><label>Appellation</label><input id="f-appellation" value="${esc(b.appellation || '')}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1"><label>Pays</label><select id="f-pays">${optionsListe(PAYS, b.pays || 'France')}</select></div>
-      <div style="flex:1"><label>Région</label><select id="f-region" data-region>${optionsRegion(b.region)}</select></div>
+      <div style="flex:1"><label>Pays</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+      <div style="flex:1"><label>Région</label><select id="f-region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
       <div style="flex:1"><label>Couleur</label><select id="f-couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
     </div>
     <div class="ligne">
@@ -231,6 +310,83 @@ function ouvrirFiche(id) {
   };
 }
 
+function ouvrirFicheSpirit(b) {
+  const id = b.id;
+  $('#feuille').innerHTML = `
+    <h3>${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</h3>
+    <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.type || 'Spiritueux')}
+      ${b.noteWeb ? `<span class="note-viv" style="margin-left:6px">★ ${esc(b.noteWeb)}</span>` : ''}</p>
+    <div class="ligne">
+      <div style="flex:1"><label>Type</label><select id="f-type">${optionsListe(TYPES_SPIRITUEUX, b.type || 'Autre')}</select></div>
+      <div style="flex:1.3"><label>Marque / distillerie</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
+    </div>
+    <div class="ligne">
+      <div style="flex:1.6"><label>Nom / expression</label><input id="f-nom" value="${esc(b.nom || '')}"></div>
+      <div style="flex:.7"><label>Âge (ans)</label><input id="f-age" type="number" min="0" value="${b.age ?? ''}"></div>
+      <div style="flex:.7"><label>% vol</label><input id="f-alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+    </div>
+    <div class="ligne">
+      <div style="flex:1"><label>Pays</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+      <div style="flex:.8"><label>Format</label><select id="f-format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
+      <div style="flex:.7"><label>Prix (€)</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
+      <div style="flex:.7"><label>Qté</label><input id="f-qty" type="number" min="0" value="${b.qty}"></div>
+    </div>
+    ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
+    <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
+    <div class="ligne" style="align-items:flex-end;margin-top:0">
+      <div style="flex:.6"><label>Ma note /100</label><input id="f-manote" type="number" min="1" max="100" value="${b.maNote ?? ''}" placeholder="—"></div>
+      <div style="flex:2"><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
+      <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes" style="height:46px">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+    </div>
+    <div class="actions">
+      <button class="btn-or" id="f-sortir" style="flex:1.4">🥃 J'en sers un verre… ou je l'offre</button>
+      <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
+    </div>
+    <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
+    <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
+  montrerFeuille(true);
+  brancherSelectsRegion($('#feuille'));
+
+  $('#f-save').onclick = () => {
+    store.majBouteille(id, {
+      type: $('#f-type').value,
+      domaine: $('#f-domaine').value.trim(),
+      nom: $('#f-nom').value.trim() || b.nom,
+      age: parseInt($('#f-age').value) || null,
+      alcool: parseFloat($('#f-alcool').value) || null,
+      pays: $('#f-pays').value,
+      format: $('#f-format').value,
+      prix: parseFloat($('#f-prix').value) || null,
+      qty: Math.max(0, parseInt($('#f-qty').value) || 0),
+      maNote: Math.min(100, Math.max(1, parseInt($('#f-manote').value))) || null,
+      notes: $('#f-notes').value,
+    });
+    montrerFeuille(false); rendre(ecranActif); toast('Fiche mise à jour');
+  };
+  $('#f-sortir').onclick = () => {
+    store.sortirBouteille(id, '', '');
+    montrerFeuille(false); rendre(ecranActif);
+    toast('Notée comme sortie. Avec modération ! 🥃');
+  };
+  $('#f-suppr').onclick = () => {
+    if (confirm(`Supprimer « ${b.nom} » ?`)) {
+      store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast('Référence supprimée');
+    }
+  };
+  if (!voixDisponible) $('#f-micro-notes').style.display = 'none';
+  $('#f-micro-notes').onclick = () => {
+    $('#f-micro-notes').classList.add('ecoute');
+    const avant = $('#f-notes').value;
+    dicter({
+      onResult: (txt) => { $('#f-notes').value = (avant ? avant + ' ' : '') + txt; },
+      onEnd: () => $('#f-micro-notes').classList.remove('ecoute'),
+      onError: (msg) => toast(msg),
+    });
+  };
+}
+
 function dialogueSortie(id) {
   const b = store.get().bottles.find((x) => x.id === id);
   $('#feuille').innerHTML = `
@@ -247,6 +403,7 @@ function dialogueSortie(id) {
     montrerFeuille(false); rendre(ecranActif);
     const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
     toast(restant > 0 ? `Bonne dégustation ! Il en reste ${restant}.` : 'C\'était la dernière — pensez au rachat 😉');
+    parler(restant > 0 ? alea(PHRASES_SORTIE) : 'C\'était la dernière bouteille. Je la note pour le rachat !', store.get().settings.voixActive);
     majBadgeAlertes();
   };
   $('#s-annule').onclick = () => montrerFeuille(false);
@@ -269,11 +426,42 @@ function liensRachatHTML(b) {
 
 /* ═══ AJOUTER ═══ */
 function initAjouter() {
+  const montrerModeVin = () => {
+    const actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'texte';
+    ['texte', 'voix', 'photo'].forEach((m) => { $(`#panneau-${m}`).hidden = catAjout !== 'vin' || m !== actif; });
+    $('#modes-ajout').hidden = catAjout !== 'vin';
+    $('#panneau-spiritueux').hidden = catAjout !== 'spiritueux';
+  };
+  $('#categorie-ajout').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
+    catAjout = s.dataset.cat;
+    $('#categorie-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
+    aAjouter = []; $('#apercu-ajout').innerHTML = '';
+    montrerModeVin();
+  });
   $('#modes-ajout').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     $('#modes-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
-    ['texte', 'voix', 'photo'].forEach((m) => { $(`#panneau-${m}`).hidden = m !== s.dataset.mode; });
+    montrerModeVin();
   });
   if (!voixDisponible) $('#modes-ajout [data-mode="voix"]').style.display = 'none';
+
+  // Formulaire spiritueux
+  $('#sp-type').innerHTML = optionsListe(TYPES_SPIRITUEUX, 'Whisky');
+  $('#sp-pays').innerHTML = optionsPays('France');
+  $('#btn-analyser-spirit').onclick = () => {
+    const marque = $('#sp-marque').value.trim();
+    const nom = $('#sp-nom').value.trim();
+    if (!marque && !nom) return toast('Indiquez au moins la marque ou le nom');
+    aAjouter = [{
+      categorie: 'spiritueux',
+      type: $('#sp-type').value, domaine: marque, nom: nom || $('#sp-type').value,
+      age: parseInt($('#sp-age').value) || null,
+      alcool: parseFloat($('#sp-alcool').value) || null,
+      pays: $('#sp-pays').value, format: '75 cl',
+      prix: parseFloat($('#sp-prix').value) || null,
+      qty: parseInt($('#sp-qty').value) || 1,
+    }];
+    rendreApercuSpirit();
+  };
 
   $('#btn-analyser-texte').onclick = () => {
     const t = $('#saisie-texte').value.trim();
@@ -298,36 +486,44 @@ function initAjouter() {
     });
   };
 
-  // Photo
+  // Photos — par lot (jusqu'à 10 étiquettes d'un coup)
   $('#input-photo').onchange = async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
+    const fichiers = [...e.target.files].slice(0, 10);
+    if (!fichiers.length) return;
+    if (e.target.files.length > 10) toast('Maximum 10 photos à la fois — les premières sont traitées');
     const { apiKey } = store.get().settings;
     if (!apiKey) {
-      $('#note-photo-ia').textContent = 'Astuce : ajoutez une clé IA (Gemini ou Claude) dans Stats → Réglages pour la lecture automatique d\'étiquettes. En attendant, fiche manuelle pré-créée.';
-      aAjouter = [parseLigne(f.name.replace(/\.[a-z]+$/i, '').replace(/[-_]/g, ' '))];
+      $('#note-photo-ia').textContent = 'Astuce : ajoutez une clé IA (Gemini ou Claude) dans Stats → Réglages pour la lecture automatique d\'étiquettes. En attendant, fiches manuelles pré-créées.';
+      aAjouter = fichiers.map((f) => parseLigne(f.name.replace(/\.[a-z]+$/i, '').replace(/[-_]/g, ' ')));
       rendreApercu();
+      e.target.value = '';
       return;
     }
-    $('#note-photo-ia').textContent = '👁️ Lecture de l\'étiquette en cours…';
-    try {
-      const { base64, type } = await compresser(f);
-      const r = await analyserEtiquette(apiKey, base64, type);
-      const g = gardeParDefaut(r.region || 'Monde', r.couleur || 'rouge', r.millesime);
-      aAjouter = [{
-        nom: r.nom || 'Vin', domaine: r.domaine || '', appellation: r.appellation || null,
-        region: REGIONS.includes(r.region) ? r.region : 'Monde',
-        couleur: COULEURS.includes(r.couleur) ? r.couleur : 'rouge',
-        millesime: r.millesime || null, prix: null, qty: 1, ...g,
-      }];
-      $('#note-photo-ia').textContent = '';
-      rendreApercu();
-    } catch (err) {
-      $('#note-photo-ia').textContent = '';
-      toast(`Lecture impossible (${err.message}) — saisie manuelle proposée`);
-      aAjouter = [parseLigne('Vin à identifier')];
-      rendreApercu();
+    aAjouter = [];
+    const lus = [];
+    for (let i = 0; i < fichiers.length; i++) {
+      $('#note-photo-ia').textContent = `👁️ Lecture des étiquettes… ${i + 1} / ${fichiers.length}`;
+      try {
+        const { base64, type } = await compresser(fichiers[i]);
+        const r = await analyserEtiquette(apiKey, base64, type);
+        const region = REGIONS.includes(r.region) ? r.region : (r.region || 'Monde');
+        const g = gardeParDefaut(region, r.couleur || 'rouge', r.millesime);
+        lus.push({
+          nom: r.nom || 'Vin', domaine: r.domaine || '', appellation: r.appellation || null,
+          pays: r.pays || null, region,
+          couleur: COULEURS.includes(r.couleur) ? r.couleur : 'rouge',
+          millesime: r.millesime || null,
+          cepages: Array.isArray(r.cepages) ? r.cepages.join(', ') : (r.cepages || null),
+          alcool: r.alcool || null, prix: null, qty: 1, ...g,
+        });
+      } catch (err) {
+        toast(`Photo ${i + 1} illisible (${err.message}) — fiche vide à compléter`);
+        lus.push(parseLigne('Vin à identifier'));
+      }
     }
+    $('#note-photo-ia').textContent = '';
+    aAjouter = lus;
+    rendreApercu();
     e.target.value = '';
   };
 }
@@ -357,8 +553,8 @@ function rendreApercu() {
         <div style="flex:1"><label>Appellation</label><input data-k="appellation" value="${esc(b.appellation || '')}"></div>
       </div>
       <div class="ligne">
-        <div style="flex:1"><label>Pays</label><select data-k="pays">${optionsListe(PAYS, b.pays || 'France')}</select></div>
-        <div style="flex:1"><label>Région</label><select data-k="region" data-region>${optionsRegion(b.region)}</select></div>
+        <div style="flex:1"><label>Pays</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+        <div style="flex:1"><label>Région</label><select data-k="region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
         <div style="flex:1"><label>Couleur</label><select data-k="couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
       </div>
       <div class="ligne">
@@ -384,6 +580,36 @@ function rendreApercu() {
   $('#btn-confirmer-ajout').onclick = confirmerAjout;
 }
 
+// Aperçu de validation d'un spiritueux (champs adaptés, même enrichissement web)
+function rendreApercuSpirit() {
+  if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
+  $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
+    <div class="apercu" data-i="${i}">
+      <h4>🥃 Spiritueux détecté</h4>
+      <div class="ligne">
+        <div style="flex:1"><label>Type</label><select data-k="type">${optionsListe(TYPES_SPIRITUEUX, b.type)}</select></div>
+        <div style="flex:1.3"><label>Marque / distillerie</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
+      </div>
+      <div class="ligne">
+        <div style="flex:1.6"><label>Nom / expression</label><input data-k="nom" value="${esc(b.nom || '')}"></div>
+        <div style="flex:.7"><label>Âge</label><input data-k="age" type="number" min="0" value="${b.age ?? ''}"></div>
+        <div style="flex:.7"><label>% vol</label><input data-k="alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+      </div>
+      <div class="ligne">
+        <div style="flex:1"><label>Pays</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+        <div style="flex:.8"><label>Prix (€)</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
+        <div style="flex:.7"><label>Qté</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
+      </div>
+      <p class="statut-enrich">${esc(b.prixInfo || '')}</p>
+      <div class="ligne"><div style="flex:1"><label>Fiche</label><textarea data-k="description" rows="3" placeholder="Distillerie, profil aromatique… (remplie automatiquement si clé IA)">${esc(b.description || '')}</textarea></div></div>
+    </div>`).join('') +
+    `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
+    <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée (${aAjouter.length})</button>`;
+  brancherSelectsRegion($('#apercu-ajout'));
+  enrichirApercu();
+  $('#btn-confirmer-ajout').onclick = confirmerAjout;
+}
+
 // Recherche web (prix + fiche) bouteille par bouteille, sans bloquer l'édition.
 // Ne touche jamais un champ déjà rempli par l'utilisateur.
 async function enrichirApercu() {
@@ -400,7 +626,9 @@ async function enrichirApercu() {
     try {
       const r = await enrichirBouteille(apiKey, b);
       if (lot !== aAjouter) return;
-      b.description = r.description; b.prixInfo = r.prixInfo; b.noteVivino = r.noteVivino;
+      b.description = r.description; b.prixInfo = r.prixInfo;
+      if (r.noteVivino != null) b.noteVivino = r.noteVivino;
+      if (r.noteWeb != null) b.noteWeb = r.noteWeb;
       const el = carte();
       if (el) {
         const prixInput = el.querySelector('[data-k="prix"]');
@@ -415,8 +643,10 @@ async function enrichirApercu() {
         }
         const desc = el.querySelector('[data-k="description"]');
         if (desc && !desc.value) desc.value = r.description || '';
-        const vivino = r.noteVivino ? ` · ★ ${String(r.noteVivino).replace('.', ',')}/5 sur Vivino` : ' · note Vivino introuvable';
-        statut(`${r.prix != null ? '✅' : '⚠️'} ${r.prixInfo}${vivino}${r.generique ? ' · fiche générique d\'appellation' : ''}`);
+        const note = b.categorie === 'spiritueux'
+          ? (r.noteWeb ? ` · ★ ${r.noteWeb}` : ' · note communautaire introuvable')
+          : (r.noteVivino ? ` · ★ ${String(r.noteVivino).replace('.', ',')}/5 sur Vivino` : ' · note Vivino introuvable');
+        statut(`${r.prix != null ? '✅' : '⚠️'} ${r.prixInfo}${note}${r.generique ? ' · fiche générique d\'appellation' : ''}`);
       }
     } catch (e) {
       statut(`⚠️ Recherche web impossible (${e.message})`);
@@ -425,24 +655,54 @@ async function enrichirApercu() {
 }
 
 function confirmerAjout() {
+  const ajoutees = [];
   document.querySelectorAll('.apercu').forEach((el) => {
-      const b = aAjouter[+el.dataset.i];
-      el.querySelectorAll('[data-k]').forEach((inp) => {
-        const k = inp.dataset.k;
-        b[k] = inp.type === 'number' ? (parseFloat(inp.value) || (k === 'qty' ? 1 : null)) : inp.value;
-      });
+    const b = aAjouter[+el.dataset.i];
+    el.querySelectorAll('[data-k]').forEach((inp) => {
+      const k = inp.dataset.k;
+      b[k] = inp.type === 'number' ? (parseFloat(inp.value) || (k === 'qty' ? 1 : null)) : inp.value;
+    });
+    if (b.categorie !== 'spiritueux') {
       // recalcule la garde si région/millésime ont changé
       const g = gardeParDefaut(b.region, b.couleur, b.millesime);
       b.gardeDe = b.gardeDe || g.gardeDe; b.gardeA = b.gardeA || g.gardeA;
-      store.ajouterBouteille(b);
-    });
-    const n = aAjouter.length;
-    aAjouter = [];
-    $('#apercu-ajout').innerHTML = '';
-    $('#saisie-texte').value = ''; $('#transcript-ajout').textContent = '';
-    toast(`${n} bouteille${n > 1 ? 's' : ''} en cave. Santé !`);
-  parler(n > 1 ? `${n} bouteilles ajoutées à votre cave.` : 'Bouteille ajoutée à votre cave.', store.get().settings.voixActive);
+    }
+    ajoutees.push(store.ajouterBouteille(b));
+  });
+  const n = ajoutees.length;
+  aAjouter = [];
+  $('#apercu-ajout').innerHTML = '';
+  $('#saisie-texte').value = ''; $('#transcript-ajout').textContent = '';
+  toast(`${n} ${n > 1 ? 'entrées' : 'entrée'} en cave. Santé !`);
+  parler(n > 1 ? alea(PHRASES_AJOUT_LOT)(n) : alea(PHRASES_AJOUT), store.get().settings.voixActive);
   majBadgeAlertes();
+  // Si on a validé avant la fin de la recherche web, elle continue en
+  // arrière-plan et complète les fiches directement en cave.
+  ajoutees.filter((b) => !b.description).forEach((b) => enrichirEnCave(b.id));
+}
+
+// Enrichissement différé d'une bouteille déjà en cave (validation rapide).
+async function enrichirEnCave(id) {
+  const { apiKey } = store.get().settings;
+  const b = store.get().bottles.find((x) => x.id === id);
+  if (!apiKey || !b || b.description) return;
+  try {
+    const r = await enrichirBouteille(apiKey, b);
+    const courant = store.get().bottles.find((x) => x.id === id);
+    if (!courant) return; // supprimée entre-temps
+    const patch = { description: r.description, prixInfo: r.prixInfo };
+    if (r.prix != null && courant.prix == null) patch.prix = r.prix;
+    if (r.noteVivino != null) patch.noteVivino = r.noteVivino;
+    if (r.noteWeb != null) patch.noteWeb = r.noteWeb;
+    for (const k of ['pays', 'appellation', 'domaine', 'cepages', 'alcool']) {
+      if (r[k] != null && !courant[k]) patch[k] = r[k];
+    }
+    store.majBouteille(id, patch);
+    if (ecranActif === 'cave') rendreCave();
+    toast(`📜 Fiche complétée : ${[courant.domaine, courant.nom].filter(Boolean).join(' ')}`);
+  } catch (e) {
+    console.warn('Enrichissement différé impossible', e);
+  }
 }
 
 /* ═══ SOMMELIER ═══ */
@@ -465,7 +725,7 @@ function initSommelier() {
   $('#btn-conseiller').onclick = () => {
     const repas = $('#saisie-repas').value.trim();
     if (!repas) return toast('Décrivez votre repas d\'abord');
-    const enCave = store.get().bottles.filter((b) => b.qty > 0);
+    const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
     if (!enCave.length) return toast('Votre cave est vide — ajoutez des bouteilles !');
     const { profil, choix } = recommander(repas, enCave, occasion);
     if (!choix.length) {
@@ -491,7 +751,7 @@ function initSommelier() {
   };
 
   $('#btn-surprise').onclick = () => {
-    const enCave = store.get().bottles.filter((b) => b.qty > 0);
+    const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
     if (!enCave.length) return toast('Votre cave est vide !');
     const b = surprise(enCave);
     const m = maturite(b);
@@ -636,12 +896,15 @@ function initAlertes() {
 function rendreStats() {
   const { bottles, settings } = store.get();
   const enCave = bottles.filter((b) => b.qty > 0);
+  const vins = enCave.filter((b) => b.categorie !== 'spiritueux');
+  const spirits = enCave.filter((b) => b.categorie === 'spiritueux');
   const valeur = enCave.reduce((s, b) => s + (b.prix || 0) * b.qty, 0);
+  const valeurTxt = settings.valeurCachee ? '•••' : `${Math.round(valeur)} €`;
   const nb = enCave.reduce((s, b) => s + b.qty, 0);
 
-  const parGroupe = (cle) => {
+  const parGroupe = (liste, cle) => {
     const g = {};
-    enCave.forEach((b) => { g[b[cle] || '—'] = (g[b[cle] || '—'] || 0) + b.qty; });
+    liste.forEach((b) => { g[b[cle] || '—'] = (g[b[cle] || '—'] || 0) + b.qty; });
     return Object.entries(g).sort((a, z) => z[1] - a[1]);
   };
   const jauges = (entrees, doree = false) => {
@@ -657,12 +920,13 @@ function rendreStats() {
   $('#contenu-stats').innerHTML = `
     <div class="bandeau-valeur" style="margin-bottom:18px">
       <div><div class="v">${nb}</div><div class="l">bouteilles</div></div>
-      <div><div class="v">${Math.round(valeur)} €</div><div class="l">valeur cave</div></div>
+      <div id="cellule-valeur-stats" title="Toucher pour masquer/afficher"><div class="v">${valeurTxt}</div><div class="l">valeur cave ${settings.valeurCachee ? '👁' : ''}</div></div>
       <div><div class="v">${enCave.length}</div><div class="l">références</div></div>
     </div>
-    <div class="stat-bloc"><h3 class="sous-titre">Par couleur</h3>${jauges(parGroupe('couleur')) || '—'}</div>
-    <div class="stat-bloc"><h3 class="sous-titre">Par région</h3>${jauges(parGroupe('region'))}</div>
-    <div class="stat-bloc"><h3 class="sous-titre">Pyramide des millésimes</h3>${jauges(parGroupe('millesime').sort((a, z) => String(z[0]).localeCompare(String(a[0]))), true)}</div>
+    <div class="stat-bloc"><h3 class="sous-titre">Par couleur</h3>${jauges(parGroupe(vins, 'couleur')) || '—'}</div>
+    <div class="stat-bloc"><h3 class="sous-titre">Par région</h3>${jauges(parGroupe(vins, 'region'))}</div>
+    <div class="stat-bloc"><h3 class="sous-titre">Pyramide des millésimes</h3>${jauges(parGroupe(vins, 'millesime').sort((a, z) => String(z[0]).localeCompare(String(a[0]))), true)}</div>
+    ${spirits.length ? `<div class="stat-bloc"><h3 class="sous-titre">Spiritueux par type</h3>${jauges(parGroupe(spirits, 'type'))}</div>` : ''}
     <div class="stat-bloc"><h3 class="sous-titre">Dernières sorties</h3>
       ${sorties.map((s) => `<div class="journal-item"><span>🍷 ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || '<p style="color:var(--creme-45);font-size:13px">Aucune sortie enregistrée.</p>'}
     </div>
@@ -682,6 +946,10 @@ function rendreStats() {
       <button class="btn-discret btn-danger" id="btn-vider" style="width:100%;margin-top:8px">Tout effacer</button>
     </div>`;
 
+  $('#cellule-valeur-stats').onclick = () => {
+    store.majSettings({ valeurCachee: !store.get().settings.valeurCachee });
+    rendreStats();
+  };
   $('#btn-save-settings').onclick = () => {
     store.majSettings({ apiKey: $('#set-api').value.trim(), voixActive: $('#set-voix').checked });
     toast('Réglages enregistrés'); rendreSommelierPlus();
@@ -718,6 +986,11 @@ export function initUI() {
   document.querySelectorAll('.nav-item').forEach((b) => b.onclick = () => montrerEcran(b.dataset.ecran));
   $('#voile').onclick = () => montrerFeuille(false);
   $('#recherche').oninput = rendreCave;
+  $('#categorie-cave').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
+    catCave = s.dataset.cat;
+    $('#categorie-cave').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
+    rendreCave();
+  });
   initAjouter();
   initSommelier();
   initAlertes();

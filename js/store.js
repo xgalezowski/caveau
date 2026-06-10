@@ -5,7 +5,7 @@ const defaults = () => ({
   version: 1,
   bottles: [],
   watches: [],          // { id, type: 'region'|'millesime'|'reference', valeur, seuil }
-  settings: { apiKey: '', voixActive: true, prenom: '' },
+  settings: { apiKey: '', voixActive: true, prenom: '', valeurCachee: false },
 });
 
 let state = charger();

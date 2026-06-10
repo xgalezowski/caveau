@@ -29,6 +29,10 @@
 
   <!-- ═══ CAVE ═══ -->
   <section class="ecran" id="ecran-cave" hidden>
+    <div class="segmente" id="categorie-cave">
+      <button class="seg actif" data-cat="vin">🍷 Vins</button>
+      <button class="seg" data-cat="spiritueux">🥃 Spiritueux</button>
+    </div>
     <div class="bandeau-valeur" id="bandeau-valeur"></div>
     <div class="barre-recherche">
       <input type="search" id="recherche" placeholder="Chercher une bouteille, une région…" autocomplete="off">
@@ -40,6 +44,10 @@
   <!-- ═══ AJOUTER ═══ -->
   <section class="ecran" id="ecran-ajouter" hidden>
     <h2 class="titre-ecran">Faire entrer<br><em>en cave</em></h2>
+    <div class="segmente" id="categorie-ajout">
+      <button class="seg actif" data-cat="vin">🍷 Vin</button>
+      <button class="seg" data-cat="spiritueux">🥃 Spiritueux</button>
+    </div>
     <div class="segmente" id="modes-ajout">
       <button class="seg actif" data-mode="texte">✍️ Texte</button>
       <button class="seg" data-mode="voix">🎙️ Voix</button>
@@ -62,10 +70,29 @@
     <div class="mode-panneau" id="panneau-photo" hidden>
       <label class="zone-photo" for="input-photo">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
-        <span>Photographier l'étiquette</span>
-        <input type="file" id="input-photo" accept="image/*" capture="environment" hidden>
+        <span>Photographier les étiquettes</span>
+        <small>une ou plusieurs photos — jusqu'à 10 d'un coup</small>
+        <input type="file" id="input-photo" accept="image/*" multiple hidden>
       </label>
       <p class="note-ia" id="note-photo-ia"></p>
+    </div>
+
+    <div class="mode-panneau" id="panneau-spiritueux" hidden>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Type</label><select id="sp-type"></select></div>
+        <div style="flex:1.4"><label>Marque / distillerie</label><input id="sp-marque" placeholder="Ardbeg, Clément…"></div>
+      </div>
+      <div class="ligne-form">
+        <div style="flex:1.6"><label>Nom / expression</label><input id="sp-nom" placeholder="10 ans, Uigeadail, XO…"></div>
+        <div style="flex:.7"><label>Âge (ans)</label><input id="sp-age" type="number" min="0"></div>
+        <div style="flex:.7"><label>% vol</label><input id="sp-alcool" type="number" step="0.1"></div>
+      </div>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Pays</label><select id="sp-pays"></select></div>
+        <div style="flex:.8"><label>Prix (€)</label><input id="sp-prix" type="number" step="0.5"></div>
+        <div style="flex:.7"><label>Quantité</label><input id="sp-qty" type="number" min="1" value="1"></div>
+      </div>
+      <button class="btn-or" id="btn-analyser-spirit">Analyser</button>
     </div>
 
     <div id="apercu-ajout"></div>
