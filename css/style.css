@@ -26,7 +26,10 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 
-html { height: 100%; overflow-x: hidden; max-width: 100%; }
+/* overflow-x: clip coupe le débordement horizontal SANS créer de conteneur de
+   défilement (contrairement à `hidden`, qui promeut overflow-y en `auto` et
+   piège le scroll vertical dans un body imbriqué — page « gelée » sur Mac). */
+html { min-height: 100%; overflow-x: clip; max-width: 100%; }
 body {
   font-family: var(--sans);
   background: var(--encre);
@@ -35,7 +38,7 @@ body {
   max-width: 100%;
   font-size: 15px;
   line-height: 1.45;
-  overflow-x: hidden;
+  overflow-x: clip;
   overscroll-behavior-y: none; /* coupe le « tirer pour recharger » d'Android */
 }
 
@@ -72,7 +75,20 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 }
 
 /* ─── En-tête ─── */
-.entete { text-align: center; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 4px; }
+.entete { position: relative; text-align: center; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 4px; }
+.avatar-entete {
+  position: absolute; top: calc(18px + env(safe-area-inset-top, 0px)); right: 16px;
+  width: 42px; height: 42px; border-radius: 50%; z-index: 2;
+  background: linear-gradient(150deg, var(--bordeaux), var(--bordeaux-vif));
+  background-size: cover; background-position: center;
+  border: 1.5px solid var(--or); color: var(--creme);
+  font-family: var(--serif); font-weight: 600; font-size: 16px; letter-spacing: .02em;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .35), 0 0 0 0 rgba(201, 162, 39, .4);
+  transition: transform .15s, box-shadow .25s;
+}
+.avatar-entete.a-photo { color: transparent; }
+.avatar-entete:active { transform: scale(.92); }
 .marque {
   font-family: var(--serif); font-style: italic; font-weight: 600;
   font-size: 42px; letter-spacing: .04em; color: var(--creme);
@@ -447,6 +463,81 @@ input[type="range"]::-webkit-slider-thumb {
   font-weight: 700;
 }
 .btn-danger { color: var(--rouge-vif); border-color: rgba(212, 87, 78, .4); }
+
+/* ─── Profil utilisateur ─── */
+.retour-profil { color: var(--creme-45); font-size: 14px; padding: 4px 0 2px; margin-bottom: 2px; }
+.retour-profil:active { color: var(--or-clair); }
+
+.profil-tete { text-align: center; padding: 14px 0 22px; }
+.profil-avatar-edit { position: relative; display: inline-block; }
+.profil-avatar {
+  display: flex; align-items: center; justify-content: center;
+  width: 92px; height: 92px; border-radius: 50%; margin: 0 auto;
+  background: linear-gradient(150deg, var(--bordeaux), var(--bordeaux-vif));
+  background-size: cover; background-position: center;
+  border: 2px solid var(--or); box-shadow: 0 8px 28px rgba(0, 0, 0, .4);
+  font-family: var(--serif); font-weight: 600; font-size: 34px; color: var(--creme);
+}
+.profil-avatar.a-photo { color: transparent; }
+.profil-avatar-cam {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--or);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.profil-nom-aff { font-family: var(--serif); font-size: 24px; font-weight: 600; margin-top: 12px; }
+.profil-email-aff { font-size: 13px; color: var(--creme-45); margin-top: 1px; }
+.profil-plan-pastille {
+  display: inline-block; margin-top: 10px; padding: 4px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--creme-70); background: rgba(243, 234, 216, .06); border: 1px solid var(--trait);
+}
+.profil-plan-pastille.pre { color: #221806; background: linear-gradient(160deg, var(--or-clair), var(--or)); border-color: var(--or); }
+
+.profil-bloc {
+  background: linear-gradient(150deg, var(--surface-2), var(--surface) 70%);
+  border: 1px solid var(--trait); border-radius: var(--rayon);
+  padding: 16px 16px 18px; margin-bottom: 14px;
+}
+.profil-bloc .sous-titre { margin-top: 0; margin-bottom: 12px; }
+.profil-bloc .actions { display: flex; gap: 8px; }
+.profil-bloc label:not(.ligne-toggle):not(.aide-champ) { display: block; font-size: 12px; color: var(--creme-45); margin: 0 2px 5px; }
+
+.ligne-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 0; font-size: 14px; color: var(--creme-70);
+  border-bottom: 1px solid rgba(243, 234, 216, .06);
+}
+.ligne-toggle:last-of-type { border-bottom: none; }
+.ligne-toggle input { width: auto; }
+.aide-champ { display: block; font-size: 12px; color: var(--creme-45); margin: 4px 2px 6px; line-height: 1.35; }
+
+.avance { margin-top: 8px; border-top: 1px solid rgba(243, 234, 216, .06); padding-top: 8px; }
+.avance summary {
+  cursor: pointer; list-style: none; font-size: 13px; color: var(--or-clair);
+  padding: 6px 0; display: flex; align-items: center; gap: 6px;
+}
+.avance summary::-webkit-details-marker { display: none; }
+.avance summary::before { content: '⚙'; }
+.avance[open] summary { margin-bottom: 6px; }
+
+.carte-offre {
+  background: linear-gradient(155deg, rgba(114, 47, 55, .4), rgba(201, 162, 39, .07));
+  border-color: rgba(201, 162, 39, .35);
+}
+.carte-offre.pre { background: linear-gradient(155deg, rgba(201, 162, 39, .22), rgba(114, 47, 55, .3)); }
+.offre-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.offre-titre { font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--or-clair); }
+.offre-sous { font-size: 12.5px; color: var(--creme-70); margin-top: 2px; }
+.offre-prix { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--creme); white-space: nowrap; }
+.offre-prix small { font-size: 12px; color: var(--creme-45); font-family: var(--sans); }
+.offre-avantages { list-style: none; margin: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; }
+.offre-avantages li { position: relative; padding-left: 24px; font-size: 13.5px; color: var(--creme-70); line-height: 1.35; }
+.offre-avantages li::before {
+  content: '✓'; position: absolute; left: 0; top: 0;
+  color: var(--or-clair); font-weight: 700;
+}
+.profil-version { text-align: center; font-size: 11px; color: var(--creme-45); letter-spacing: .12em; margin-top: 14px; }
 
 /* ─── Toasts ─── */
 .toasts { position: fixed; bottom: calc(var(--nav-h) + 12px); left: 16px; right: 16px; z-index: 70; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }

@@ -19,6 +19,9 @@
 <div class="voute" aria-hidden="true"></div>
 
 <header class="entete">
+  <button class="avatar-entete" id="avatar-entete" aria-label="Mon profil">
+    <span id="avatar-init">XG</span>
+  </button>
   <div class="entete-arche">
     <h1 class="marque">Caveau</h1>
     <p class="devise">— votre cave vous parle —</p>
@@ -162,6 +165,12 @@
   <section class="ecran" id="ecran-stats" hidden>
     <h2 class="titre-ecran">L'état de<br><em>la cave</em></h2>
     <div id="contenu-stats"></div>
+  </section>
+
+  <!-- ═══ PROFIL ═══ -->
+  <section class="ecran" id="ecran-profil" hidden>
+    <button class="retour-profil" id="btn-retour-profil" aria-label="Retour">‹ Retour</button>
+    <div id="contenu-profil"></div>
   </section>
 
 </main>

@@ -19,6 +19,7 @@ const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 let ecranActif = 'cave';
+let ecranAvantProfil = 'cave'; // pour le bouton « ‹ Retour » du profil
 let filtreCouleur = null;
 let occasion = 'weekend';
 let aAjouter = []; // bouteilles en attente de confirmation
@@ -66,8 +67,11 @@ const PHRASES_SORTIE = [
 
 /* ═══ Navigation ═══ */
 export function montrerEcran(nom) {
+  // Mémorise d'où l'on vient avant d'entrer dans le profil (pour le retour).
+  if (nom === 'profil' && ecranActif !== 'profil') ecranAvantProfil = ecranActif;
   ecranActif = nom;
   document.querySelectorAll('.ecran').forEach((e) => { e.hidden = e.id !== `ecran-${nom}`; });
+  // Le profil n'est pas dans la barre du bas : aucun onglet actif dans ce cas.
   document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('actif', b.dataset.ecran === nom));
   rendre(nom);
   window.scrollTo({ top: 0 });
@@ -78,6 +82,7 @@ function rendre(nom) {
   if (nom === 'alertes') rendreAlertes();
   if (nom === 'stats') rendreStats();
   if (nom === 'sommelier') rendreSommelierPlus();
+  if (nom === 'profil') rendreProfil();
   majBadgeAlertes();
 }
 
@@ -1241,32 +1246,156 @@ function rendreStats() {
     ${spirits.length ? `<div class="stat-bloc"><h3 class="sous-titre">Spiritueux par type</h3>${jauges(parGroupe(spirits, 'type'))}</div>` : ''}
     <div class="stat-bloc"><h3 class="sous-titre">Dernières sorties</h3>
       ${sorties.map((s) => `<div class="journal-item"><span>🍷 ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || '<p style="color:var(--creme-45);font-size:13px">Aucune sortie enregistrée.</p>'}
-    </div>
-    <div class="stat-bloc"><h3 class="sous-titre">Réglages</h3>
-      <label style="font-size:12px;color:var(--creme-45)">Clé API IA — Gemini ou Claude (débloque photo, prix &amp; fiches web, Sommelier+)</label>
-      <input id="set-api" type="password" placeholder="AQ.… / AIza… / sk-ant-…" value="${esc(settings.apiKey)}">
-      <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;color:var(--creme-70)">
-        <input type="checkbox" id="set-voix" style="width:auto" ${settings.voixActive ? 'checked' : ''}> Le sommelier me répond à voix haute
-      </label>
-      <button class="btn-or" id="btn-save-settings">Enregistrer les réglages</button>
-      <button class="btn-fantome" id="btn-installer" hidden>📲 Installer l'app sur ce téléphone</button>
-      <div class="actions" style="margin-top:10px">
-        <button class="btn-sombre" id="btn-export" style="flex:1">⬇️ Exporter</button>
-        <button class="btn-sombre" id="btn-import" style="flex:1">⬆️ Importer</button>
-        <input type="file" id="input-import" accept=".json" hidden>
-      </div>
-      <button class="btn-discret btn-danger" id="btn-vider" style="width:100%;margin-top:8px">Tout effacer</button>
     </div>`;
 
   $('#cellule-valeur-stats').onclick = () => {
     store.majSettings({ valeurCachee: !store.get().settings.valeurCachee });
     rendreStats();
   };
-  $('#btn-save-settings').onclick = () => {
-    store.majSettings({ apiKey: $('#set-api').value.trim(), voixActive: $('#set-voix').checked });
-    toast('Réglages enregistrés'); rendreSommelierPlus();
+}
+
+/* ═══ PROFIL UTILISATEUR ═══ */
+// Initiales pour l'avatar : à partir du nom, sinon de l'email, sinon « ? ».
+function initiales(s) {
+  const n = (s.nom || '').trim();
+  if (n) return n.split(/\s+/).slice(0, 2).map((m) => m[0]).join('').toUpperCase();
+  const e = (s.email || '').trim();
+  return e ? e[0].toUpperCase() : '?';
+}
+
+// Met à jour la pastille avatar de l'en-tête (initiales ou photo).
+export function majAvatar() {
+  const s = store.get().settings;
+  const el = $('#avatar-entete');
+  if (!el) return;
+  if (s.avatar) {
+    el.classList.add('a-photo');
+    el.style.backgroundImage = `url("${s.avatar}")`;
+    el.querySelector('#avatar-init').textContent = '';
+  } else {
+    el.classList.remove('a-photo');
+    el.style.backgroundImage = '';
+    el.querySelector('#avatar-init').textContent = initiales(s);
+  }
+}
+
+const AVANTAGES_PREMIUM = [
+  'Lectures vocales du sommelier en voix premium illimitées',
+  'Embellissement IA des photos & illustrations de bouteilles',
+  'Prix, fiches et notes Vivino récupérés sur le web',
+  'Sauvegarde chiffrée dans le cloud & multi-appareils',
+];
+
+function rendreProfil() {
+  const s = store.get().settings;
+  const av = s.avatar
+    ? `<span class="profil-avatar a-photo" style="background-image:url('${s.avatar}')"></span>`
+    : `<span class="profil-avatar">${initiales(s)}</span>`;
+  const premium = s.plan === 'premium';
+
+  $('#contenu-profil').innerHTML = `
+    <div class="profil-tete">
+      <button class="profil-avatar-edit" id="p-avatar-btn" aria-label="Changer la photo">
+        ${av}<span class="profil-avatar-cam">📷</span>
+      </button>
+      <input type="file" id="p-avatar-input" accept="image/*" hidden>
+      <div class="profil-nom-aff">${esc(s.nom || 'Votre nom')}</div>
+      <div class="profil-email-aff">${esc(s.email || 'votre@email.com')}</div>
+      <span class="profil-plan-pastille ${premium ? 'pre' : ''}">${premium ? '★ Premium' : 'Offre Gratuite'}</span>
+    </div>
+
+    <div class="profil-bloc">
+      <h3 class="sous-titre">Mon identité</h3>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Nom</label><input id="p-nom" placeholder="Xavier Galezowski" value="${esc(s.nom)}"></div>
+      </div>
+      <div class="ligne-form">
+        <div style="flex:1"><label>Email</label><input id="p-email" type="email" placeholder="vous@email.com" value="${esc(s.email)}"></div>
+      </div>
+      <button class="btn-or" id="p-save-identite">Enregistrer mon profil</button>
+    </div>
+
+    <div class="profil-bloc carte-offre ${premium ? 'pre' : ''}">
+      <div class="offre-tete">
+        <div>
+          <div class="offre-titre">${premium ? 'Caveau Premium' : 'Caveau — Gratuit'}</div>
+          <div class="offre-sous">${premium ? 'Merci de votre soutien 🥂' : 'Passez Premium pour libérer toute la cave'}</div>
+        </div>
+        <div class="offre-prix">${premium ? '✓' : '4,99 €<small>/mois</small>'}</div>
+      </div>
+      <ul class="offre-avantages">
+        ${AVANTAGES_PREMIUM.map((a) => `<li>${esc(a)}</li>`).join('')}
+      </ul>
+      ${premium
+        ? `<button class="btn-fantome" id="p-plan-toggle">Revenir à l'offre gratuite</button>`
+        : `<button class="btn-or btn-large" id="p-plan-toggle">✨ Passer Premium</button>`}
+    </div>
+
+    <div class="profil-bloc">
+      <h3 class="sous-titre">Préférences</h3>
+      <label class="ligne-toggle">
+        <span>Le sommelier me répond à voix haute</span>
+        <input type="checkbox" id="p-voix" ${s.voixActive ? 'checked' : ''}>
+      </label>
+      <label class="ligne-toggle">
+        <span>Masquer la valeur de ma cave</span>
+        <input type="checkbox" id="p-valeur" ${s.valeurCachee ? 'checked' : ''}>
+      </label>
+      <details class="avance" ${s.apiKey ? '' : ''}>
+        <summary>Avancé — clé IA</summary>
+        <label class="aide-champ">Clé API IA — Gemini ou Claude (débloque photo, prix &amp; fiches web, Sommelier+). Stockée uniquement sur cet appareil.</label>
+        <input id="p-api" type="password" placeholder="AQ.… / AIza… / sk-ant-…" value="${esc(s.apiKey)}">
+        <button class="btn-sombre" id="p-save-api" style="width:100%;margin-top:8px">Enregistrer la clé</button>
+      </details>
+    </div>
+
+    <div class="profil-bloc">
+      <h3 class="sous-titre">Mes données</h3>
+      <button class="btn-fantome" id="p-installer" hidden>📲 Installer l'app sur ce téléphone</button>
+      <div class="actions" style="margin-top:4px">
+        <button class="btn-sombre" id="p-export" style="flex:1">⬇️ Exporter</button>
+        <button class="btn-sombre" id="p-import" style="flex:1">⬆️ Importer</button>
+        <input type="file" id="p-input-import" accept=".json" hidden>
+      </div>
+      <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
+      <p class="profil-version">Caveau · v17</p>
+    </div>`;
+
+  // — Identité —
+  $('#p-save-identite').onclick = () => {
+    store.majSettings({ nom: $('#p-nom').value.trim(), email: $('#p-email').value.trim() });
+    majAvatar(); rendreProfil(); toast('Profil enregistré');
   };
-  $('#btn-export').onclick = () => {
+  // — Avatar photo —
+  $('#p-avatar-btn').onclick = () => $('#p-avatar-input').click();
+  $('#p-avatar-input').onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const brut = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f);
+      });
+      const petit = await compresserDataUrl(brut, 256, 0.8);
+      store.majSettings({ avatar: petit });
+      majAvatar(); rendreProfil(); toast('Photo de profil mise à jour');
+    } catch (err) { toast('Image illisible'); }
+  };
+  // — Abonnement (placeholder, sans backend) —
+  $('#p-plan-toggle').onclick = () => {
+    const premium = store.get().settings.plan === 'premium';
+    store.majSettings({ plan: premium ? 'gratuit' : 'premium' });
+    rendreProfil();
+    toast(premium ? 'Retour à l’offre gratuite' : '✨ Bienvenue dans Caveau Premium !');
+  };
+  // — Préférences —
+  $('#p-voix').onchange = (e) => store.majSettings({ voixActive: e.target.checked });
+  $('#p-valeur').onchange = (e) => store.majSettings({ valeurCachee: e.target.checked });
+  $('#p-save-api').onclick = () => {
+    store.majSettings({ apiKey: $('#p-api').value.trim() });
+    rendreSommelierPlus(); toast('Clé IA enregistrée');
+  };
+  // — Données —
+  $('#p-export').onclick = () => {
     const blob = new Blob([store.exporter()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1274,20 +1403,21 @@ function rendreStats() {
     a.click(); URL.revokeObjectURL(a.href);
     toast('Sauvegarde téléchargée');
   };
-  $('#btn-import').onclick = () => $('#input-import').click();
-  $('#input-import').onchange = async (e) => {
+  $('#p-import').onclick = () => $('#p-input-import').click();
+  $('#p-input-import').onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    try { store.importer(await f.text()); rendreStats(); toast('Cave importée !'); }
+    try { store.importer(await f.text()); majAvatar(); rendreProfil(); toast('Cave importée !'); }
     catch (err) { toast(`Import impossible : ${err.message}`); }
   };
-  $('#btn-vider').onclick = () => {
-    if (confirm('Vraiment tout effacer ? Pensez à exporter avant.')) { store.toutEffacer(); rendreStats(); toast('Cave réinitialisée'); }
+  $('#p-vider').onclick = () => {
+    if (confirm('Vraiment tout effacer ? Pensez à exporter avant.')) {
+      store.toutEffacer(); majAvatar(); rendreProfil(); toast('Cave réinitialisée');
+    }
   };
-
   // Bouton d'installation PWA
   if (window.__promptInstall) {
-    const btn = $('#btn-installer');
+    const btn = $('#p-installer');
     btn.hidden = false;
     btn.onclick = () => window.__promptInstall();
   }
@@ -1296,6 +1426,9 @@ function rendreStats() {
 /* ═══ Init ═══ */
 export function initUI() {
   document.querySelectorAll('.nav-item').forEach((b) => b.onclick = () => montrerEcran(b.dataset.ecran));
+  $('#avatar-entete').onclick = () => montrerEcran('profil');
+  $('#btn-retour-profil').onclick = () => montrerEcran(ecranAvantProfil);
+  majAvatar();
   $('#voile').onclick = () => montrerFeuille(false);
   $('#feuille-fermer').onclick = () => montrerFeuille(false);
   brancherGlissementFeuille();
