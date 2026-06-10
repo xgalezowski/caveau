@@ -313,7 +313,7 @@ function ouvrirFiche(id) {
   if (!b) return;
   if (b.categorie === 'spiritueux') { ouvrirFicheSpirit(b); return; }
   const m = maturite(b);
-  $('#feuille').innerHTML = `
+  $('#feuille-contenu').innerHTML = `
     <h3>${esc(b.nom)} ${b.millesime ? `<em style="color:var(--or-clair)">${b.millesime}</em>` : ''}</h3>
     <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.domaine || '')}
       <span class="cachet cachet-${m.code}">${m.label}</span>
@@ -393,7 +393,7 @@ function ouvrirFiche(id) {
       onError: (msg) => toast(msg),
     });
   };
-  $('#f-sortir').onclick = () => { montrerFeuille(false); dialogueSortie(id); };
+  $('#f-sortir').onclick = () => { dialogueSortie(id); }; // remplace le contenu, modale déjà ouverte
   $('#f-suppr').onclick = () => {
     if (confirm(`Supprimer « ${b.nom} » de la cave ?`)) {
       store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast('Référence supprimée');
@@ -412,7 +412,7 @@ function ouvrirFiche(id) {
 
 function ouvrirFicheSpirit(b) {
   const id = b.id;
-  $('#feuille').innerHTML = `
+  $('#feuille-contenu').innerHTML = `
     <h3>${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</h3>
     <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.type || 'Spiritueux')}
       ${b.noteWeb ? `<span class="note-viv" style="margin-left:6px">★ ${esc(b.noteWeb)}</span>` : ''}</p>
@@ -507,7 +507,7 @@ function ouvrirFicheSpirit(b) {
 
 function dialogueSortie(id) {
   const b = store.get().bottles.find((x) => x.id === id);
-  $('#feuille').innerHTML = `
+  $('#feuille-contenu').innerHTML = `
     <h3>On ouvre le ${esc(b.nom)} ${b.millesime || ''} ?</h3>
     <div class="ligne"><div style="flex:1"><label>L'occasion</label><input id="s-occ" placeholder="Dîner entre amis, anniversaire…"></div></div>
     <div class="ligne"><div style="flex:1"><label>Première impression (optionnel)</label><input id="s-note" placeholder="Superbe, encore jeune, bouchonné…"></div></div>
@@ -527,9 +527,55 @@ function dialogueSortie(id) {
   $('#s-annule').onclick = () => montrerFeuille(false);
 }
 
+let feuilleOuverte = false;
+
 function montrerFeuille(visible) {
   $('#feuille').hidden = !visible;
   $('#voile').hidden = !visible;
+  $('#feuille').style.transform = ''; // annule un éventuel glissé en cours
+  if (visible && !feuilleOuverte) {
+    feuilleOuverte = true;
+    // Empile un état d'historique : le bouton/geste « retour » d'Android
+    // refermera la modale au lieu de quitter la page.
+    history.pushState({ caveauSheet: true }, '');
+  } else if (!visible && feuilleOuverte) {
+    feuilleOuverte = false;
+    if (history.state && history.state.caveauSheet) history.back();
+  }
+}
+
+// Geste/bouton retour : referme la modale si elle est ouverte.
+window.addEventListener('popstate', () => {
+  if (feuilleOuverte) {
+    feuilleOuverte = false;
+    $('#feuille').hidden = true;
+    $('#voile').hidden = true;
+    $('#feuille').style.transform = '';
+  }
+});
+
+// Glisser la poignée vers le bas pour refermer la modale (geste natif).
+function brancherGlissementFeuille() {
+  const feuille = $('#feuille');
+  const poignee = $('#feuille-poignee');
+  let y0 = null;
+  let dy = 0;
+  poignee.addEventListener('touchstart', (e) => {
+    y0 = e.touches[0].clientY; dy = 0;
+    feuille.style.transition = 'none';
+  }, { passive: true });
+  poignee.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    dy = Math.max(0, e.touches[0].clientY - y0); // vers le bas uniquement
+    feuille.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  poignee.addEventListener('touchend', () => {
+    if (y0 == null) return;
+    feuille.style.transition = '';
+    if (dy > 90) { feuille.style.transform = ''; montrerFeuille(false); }
+    else feuille.style.transform = '';
+    y0 = null;
+  });
 }
 
 function liensRachatHTML(b) {
@@ -1182,6 +1228,8 @@ function rendreStats() {
 export function initUI() {
   document.querySelectorAll('.nav-item').forEach((b) => b.onclick = () => montrerEcran(b.dataset.ecran));
   $('#voile').onclick = () => montrerFeuille(false);
+  $('#feuille-fermer').onclick = () => montrerFeuille(false);
+  brancherGlissementFeuille();
   $('#recherche').oninput = rendreCave;
   $('#categorie-cave').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     catCave = s.dataset.cat;

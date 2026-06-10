@@ -195,7 +195,13 @@
 
 <!-- Fiche bouteille (bottom sheet) -->
 <div class="voile" id="voile" hidden></div>
-<div class="feuille" id="feuille" hidden role="dialog" aria-modal="true"></div>
+<div class="feuille" id="feuille" hidden role="dialog" aria-modal="true">
+  <div class="feuille-poignee" id="feuille-poignee">
+    <span class="poignee-barre"></span>
+    <button class="feuille-fermer" id="feuille-fermer" aria-label="Fermer">✕</button>
+  </div>
+  <div id="feuille-contenu"></div>
+</div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
