@@ -1,0 +1,17 @@
+{
+  "name": "Caveau — Parlez à votre cave",
+  "short_name": "Caveau",
+  "description": "Votre cave à vin vous parle : inventaire à la voix, accords mets-vins, alertes et rachats malins.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#120a0d",
+  "theme_color": "#120a0d",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Caveau — Parlez à votre cave</title>
+<meta name="description" content="Votre cave à vin vous parle : inventaire à la voix, accords mets-vins, alertes et rachats malins.">
+<meta name="theme-color" content="#120a0d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="voute" aria-hidden="true"></div>
+
+<header class="entete">
+  <div class="entete-arche">
+    <h1 class="marque">Caveau</h1>
+    <p class="devise">— votre cave vous parle —</p>
+  </div>
+</header>
+
+<main id="ecrans">
+
+  <!-- ═══ CAVE ═══ -->
+  <section class="ecran" id="ecran-cave" hidden>
+    <div class="bandeau-valeur" id="bandeau-valeur"></div>
+    <div class="barre-recherche">
+      <input type="search" id="recherche" placeholder="Chercher une bouteille, une région…" autocomplete="off">
+    </div>
+    <div class="filtres" id="filtres-couleur"></div>
+    <div id="liste-cave"></div>
+  </section>
+
+  <!-- ═══ AJOUTER ═══ -->
+  <section class="ecran" id="ecran-ajouter" hidden>
+    <h2 class="titre-ecran">Faire entrer<br><em>en cave</em></h2>
+    <div class="segmente" id="modes-ajout">
+      <button class="seg actif" data-mode="texte">✍️ Texte</button>
+      <button class="seg" data-mode="voix">🎙️ Voix</button>
+      <button class="seg" data-mode="photo">📷 Photo</button>
+    </div>
+
+    <div class="mode-panneau" id="panneau-texte">
+      <textarea id="saisie-texte" rows="4" placeholder="Ex : 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€&#10;Sancerre blanc 2022, 18 euros&#10;Champagne Bollinger, x2"></textarea>
+      <button class="btn-or" id="btn-analyser-texte">Analyser</button>
+    </div>
+
+    <div class="mode-panneau" id="panneau-voix" hidden>
+      <button class="micro" id="btn-micro" aria-label="Dicter">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <p class="micro-aide" id="micro-aide">Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »</p>
+      <p class="transcript" id="transcript-ajout"></p>
+    </div>
+
+    <div class="mode-panneau" id="panneau-photo" hidden>
+      <label class="zone-photo" for="input-photo">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+        <span>Photographier l'étiquette</span>
+        <input type="file" id="input-photo" accept="image/*" capture="environment" hidden>
+      </label>
+      <p class="note-ia" id="note-photo-ia"></p>
+    </div>
+
+    <div id="apercu-ajout"></div>
+  </section>
+
+  <!-- ═══ SOMMELIER ═══ -->
+  <section class="ecran" id="ecran-sommelier" hidden>
+    <h2 class="titre-ecran">Qu'est-ce qu'on<br><em>mange ce soir ?</em></h2>
+    <div class="champ-repas">
+      <textarea id="saisie-repas" rows="2" placeholder="Ex : côte de bœuf grillée et cèpes…"></textarea>
+      <button class="micro micro-mini" id="btn-micro-repas" aria-label="Dicter le repas">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+    </div>
+    <div class="segmente" id="occasions">
+      <button class="seg" data-occ="semaine">Semaine</button>
+      <button class="seg actif" data-occ="weekend">Week-end</button>
+      <button class="seg" data-occ="grande">Grande occasion</button>
+    </div>
+    <button class="btn-or btn-large" id="btn-conseiller">Conseille-moi</button>
+    <button class="btn-fantome" id="btn-surprise">🎲 Ce soir je bois quoi ?</button>
+    <div id="resultats-sommelier"></div>
+    <div class="sommelier-plus" id="sommelier-plus"></div>
+  </section>
+
+  <!-- ═══ ALERTES ═══ -->
+  <section class="ecran" id="ecran-alertes" hidden>
+    <h2 class="titre-ecran">Veilles &<br><em>rachats malins</em></h2>
+    <div id="liste-alertes"></div>
+    <h3 class="sous-titre">Mes veilles</h3>
+    <div id="liste-veilles"></div>
+    <form class="forme-veille" id="forme-veille">
+      <select id="veille-type">
+        <option value="region">Région</option>
+        <option value="millesime">Millésime</option>
+        <option value="reference">Référence</option>
+      </select>
+      <span id="veille-valeur-slot"></span>
+      <input type="number" id="veille-seuil" min="1" value="3" aria-label="Seuil">
+      <button class="btn-or" type="submit">Veiller</button>
+    </form>
+  </section>
+
+  <!-- ═══ STATS ═══ -->
+  <section class="ecran" id="ecran-stats" hidden>
+    <h2 class="titre-ecran">L'état de<br><em>la cave</em></h2>
+    <div id="contenu-stats"></div>
+  </section>
+
+</main>
+
+<!-- Navigation -->
+<nav class="nav" aria-label="Navigation principale">
+  <button class="nav-item" data-ecran="cave" aria-label="Cave">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 21V10a9 7 0 0 1 18 0v11M3 21h18M7 21v-6h4v6m4-9h2"/></svg>
+    <span>Cave</span>
+  </button>
+  <button class="nav-item" data-ecran="ajouter" aria-label="Ajouter">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    <span>Ajouter</span>
+  </button>
+  <button class="nav-item nav-central" data-ecran="sommelier" aria-label="Sommelier">
+    <span class="pastille-sommelier">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3h8l-.6 6a3.4 3.4 0 0 1-6.8 0L8 3ZM12 12.5V20m-4 1h8"/><path d="M8.4 7h7.2" opacity=".5"/></svg>
+    </span>
+    <span>Sommelier</span>
+  </button>
+  <button class="nav-item" data-ecran="alertes" aria-label="Alertes">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Zm4 9a2 2 0 0 0 4 0"/></svg>
+    <span>Alertes</span>
+    <span class="badge-nav" id="badge-alertes" hidden></span>
+  </button>
+  <button class="nav-item" data-ecran="stats" aria-label="Statistiques">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>
+    <span>Stats</span>
+  </button>
+</nav>
+
+<!-- Fiche bouteille (bottom sheet) -->
+<div class="voile" id="voile" hidden></div>
+<div class="feuille" id="feuille" hidden role="dialog" aria-modal="true"></div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
