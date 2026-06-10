@@ -266,13 +266,26 @@ export async function equivalents(apiKey, bottle) {
    Renvoie une data URL PNG, ou null. Image générée d'après les
    caractéristiques de la bouteille (Gemini uniquement).                  */
 
+// Forme typique de la bouteille selon la région (déterminante visuellement :
+// une bordelaise, une bourguignonne et une flûte alsacienne n'ont rien à voir).
+const REG_BORDELAISE = ['Bordeaux', 'Sud-Ouest', 'Languedoc', 'Toscane', 'Rioja', 'Ribera del Duero', 'Priorat', 'Catalogne', 'Castille', 'Napa Valley', 'Sonoma', 'Mendoza', 'Salta', 'Patagonie', 'Vallée de Maipo', 'Colchagua', 'Casablanca', 'Douro', 'Alentejo', 'Naoussa', 'Némée', 'Kakhétie'];
+const REG_FLUTE = ['Alsace', 'Moselle', 'Rheingau', 'Palatinat', 'Rheinhessen', 'Bade', 'Franconie', 'Savoie'];
+function formeBouteille(b) {
+  if (b.categorie === 'spiritueux') return '';
+  if (b.couleur === 'effervescent') return 'une bouteille de type champenoise : verre épais et foncé, épaules tombantes, cul profond';
+  const r = b.region || '';
+  if (REG_FLUTE.includes(r)) return 'une bouteille de type flûte alsacienne/rhénane : haute, très fine et élancée, épaules longues et tombantes';
+  if (REG_BORDELAISE.includes(r)) return 'une bouteille de type bordelaise : épaules hautes et marquées, corps cylindrique bien droit';
+  return 'une bouteille de type bourguignonne : épaules douces et tombantes, corps légèrement évasé';
+}
+
 function promptImage(b) {
   if (b.categorie === 'spiritueux') {
     const ident = [b.type, b.domaine, b.nom, b.age ? `${b.age} ans d'âge` : null].filter(Boolean).join(' ');
     return `Photographie produit réaliste et élégante d'une bouteille de ${ident}, debout sur un comptoir de bar sombre, éclairage doux et tamisé, étiquette nette et lisible, reflets subtils sur le verre, cadrage vertical, bouteille entière centrée, ambiance feutrée.`;
   }
   const ident = [`vin ${b.couleur}`, b.appellation || b.region, b.domaine, b.millesime ? `millésime ${b.millesime}` : null].filter(Boolean).join(', ');
-  return `Photographie produit réaliste et élégante d'une bouteille de ${ident}, debout dans une cave à vin sombre, éclairage doux latéral, étiquette nette et lisible, reflets subtils sur le verre, cadrage vertical, bouteille entière centrée, ambiance feutrée et raffinée.`;
+  return `Photographie produit réaliste et élégante d'une bouteille de ${ident}. IMPORTANT : ${formeBouteille(b)}. Bouteille debout dans une cave à vin sombre, éclairage doux latéral, étiquette nette et lisible, reflets subtils sur le verre, cadrage vertical, bouteille entière centrée, ambiance feutrée et raffinée.`;
 }
 
 // sourceDataUrl : si fournie, on RETRAVAILLE cette photo (même bouteille,
@@ -283,9 +296,11 @@ export async function genererImageBouteille(apiKey, b, sourceDataUrl = null) {
   if (sourceDataUrl) {
     const m = sourceDataUrl.match(/^data:([^;]+);base64,(.+)$/);
     if (!m) return null;
+    const forme = formeBouteille(b);
+    const rappelForme = forme ? ` C'est ${forme} : conserve impérativement cette silhouette exacte, ne change pas la forme du verre.` : '';
     parts = [
       { inline_data: { mime_type: m[1], data: m[2] } },
-      { text: 'Garde EXACTEMENT cette même bouteille — forme, étiquette, couleur, niveau de remplissage, proportions — sans rien modifier de la bouteille elle-même. Replace-la simplement dans un décor élégant et sombre de cave à vin (ou de bar pour un spiritueux), éclairage doux et latéral, reflets subtils sur le verre, ambiance feutrée et raffinée, cadrage vertical, bouteille entière centrée. Seuls le décor et l\'éclairage changent.' },
+      { text: `Garde EXACTEMENT cette même bouteille — forme et silhouette du verre, étiquette, couleur, niveau de remplissage, proportions — sans rien modifier de la bouteille elle-même.${rappelForme} Replace-la simplement dans un décor élégant et sombre de cave à vin (ou de bar pour un spiritueux), éclairage doux et latéral, reflets subtils sur le verre, ambiance feutrée et raffinée, cadrage vertical, bouteille entière centrée. Seuls le décor et l'éclairage changent.` },
     ];
   } else {
     parts = [{ text: promptImage(b) }];

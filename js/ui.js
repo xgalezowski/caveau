@@ -250,7 +250,8 @@ function rendreCave() {
 function carteHTML(b) {
   if (b.categorie === 'spiritueux') {
     return `<div class="carte" data-id="${b.id}">
-      ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : '<div class="carte-couleur c-spirit"></div>'}
+      <div class="carte-couleur c-spirit"></div>
+      ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : ''}
       <div class="carte-corps">
         <div class="carte-nom">${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
         <div class="carte-meta">${esc(b.type || 'Spiritueux')}${b.age ? ` · ${b.age} ans` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
@@ -261,7 +262,8 @@ function carteHTML(b) {
   }
   const m = maturite(b);
   return `<div class="carte" data-id="${b.id}">
-    ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : `<div class="carte-couleur c-${b.couleur}"></div>`}
+    <div class="carte-couleur c-${b.couleur}"></div>
+    ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : ''}
     <div class="carte-corps">
       <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
       <div class="carte-meta">${esc(b.appellation || b.region)}${b.prix ? ` · ${b.prix} €` : ''}${b.noteVivino ? ` · <span class="note-viv">★ ${String(b.noteVivino).replace('.', ',')}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
