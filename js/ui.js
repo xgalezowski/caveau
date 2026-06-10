@@ -289,23 +289,24 @@ async function compresserDataUrl(dataUrl, maxH = 540, q = 0.82) {
 // Image à afficher : la version stylisée si elle existe, sinon la photo prise.
 const imageAffichee = (b) => b.image || b.photoOrig || null;
 
-// Bloc image en tête de fiche. Aucune génération automatique : on montre la
-// vraie photo si on l'a, et des boutons explicites sinon.
+// Bloc image en tête de fiche. Aucune génération automatique. On peut
+// toujours attacher sa propre photo (sans IA), et l'embellir/générer si clé.
 function blocImage(b) {
   const { apiKey } = store.get().settings;
   const aff = imageAffichee(b);
+  const input = `<input type="file" accept="image/*" data-photo="${b.id}" hidden>`;
   if (aff) {
-    const revert = (b.image && b.photoOrig) ? `<button class="photo-regen" data-revert="${b.id}">↩︎ Ma photo</button>` : '';
     const regen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${b.photoOrig ? '✨ Embellir le décor' : '🔄 Régénérer'}</button>` : '';
-    return `<div class="photo-bouteille"><img src="${aff}" alt="${esc(b.nom || '')}"><div class="photo-actions">${regen}${revert}</div></div>`;
+    const revert = (b.image && b.photoOrig) ? `<button class="photo-regen" data-revert="${b.id}">↩︎ Ma photo</button>` : '';
+    const photo = `<button class="photo-regen" data-photobtn="${b.id}">📷 ${b.photoOrig ? 'Changer la photo' : 'Mettre ma photo'}</button>`;
+    return `<div class="photo-bouteille"><img src="${aff}" alt="${esc(b.nom || '')}"><div class="photo-actions">${regen}${revert}${photo}</div>${input}</div>`;
   }
-  if (apiKey) {
-    return `<div class="photo-bouteille"><button class="photo-regen" data-regen="${b.id}">🎨 Générer une illustration</button></div>`;
-  }
-  return ''; // pas de clé IA et pas de photo : rien
+  // Pas encore d'image : ajouter sa photo (toujours) + générer (si clé)
+  const gen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">🎨 Générer une illustration</button>` : '';
+  return `<div class="photo-bouteille"><div class="photo-actions"><button class="photo-regen" data-photobtn="${b.id}">📷 Ajouter ma photo</button>${gen}</div>${input}</div>`;
 }
 
-// Rebranche les boutons du bloc image (régénérer / revenir à ma photo).
+// Rebranche les boutons du bloc image (photo / régénérer / revenir à ma photo).
 function monterImage(id) {
   const regen = $(`[data-regen="${id}"]`);
   if (regen) regen.onclick = () => genererEtAfficher(id);
@@ -315,6 +316,31 @@ function monterImage(id) {
     majBlocImage(id);
     if (ecranActif === 'cave') rendreCave();
   };
+  const input = $(`[data-photo="${id}"]`);
+  const photoBtn = $(`[data-photobtn="${id}"]`);
+  if (photoBtn && input) photoBtn.onclick = () => input.click();
+  if (input) input.onchange = (e) => {
+    const f = e.target.files[0];
+    if (f) attacherPhoto(id, f);
+    e.target.value = '';
+  };
+}
+
+// Attache la photo prise par l'utilisateur comme image de la bouteille.
+async function attacherPhoto(id, file) {
+  const slot = $('.photo-bouteille');
+  if (slot) slot.innerHTML = '<div class="photo-charge"><span class="photo-shimmer"></span>📷 Enregistrement de votre photo…</div>';
+  try {
+    const { dataUrl } = await compresser(file);
+    const vignette = await compresserDataUrl(dataUrl, 680, 0.8);
+    store.majBouteille(id, { photoOrig: vignette, image: null }); // la photo devient l'image affichée
+    if (!$('#feuille').hidden) majBlocImage(id);
+    if (ecranActif === 'cave') rendreCave();
+    toast('Photo enregistrée');
+  } catch (e) {
+    if (!$('#feuille').hidden) majBlocImage(id);
+    toast(`Photo impossible : ${e.message}`);
+  }
 }
 
 function majBlocImage(id) {
