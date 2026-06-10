@@ -1,7 +1,18 @@
 // Bootstrap : UI, service worker, invite d'installation PWA.
-import { initUI } from './ui.js';
+import { initUI, toast } from './ui.js';
+import { store } from './store.js';
+
+// Lien magique : ouvrir l'app avec #cle=XXX enregistre la clé IA dans les
+// réglages (une seule fois), puis nettoie l'URL. Le fragment ne quitte
+// jamais le navigateur — rien ne transite par le serveur ni par le code.
+const hash = new URLSearchParams(location.hash.slice(1));
+if (hash.get('cle')) {
+  store.majSettings({ apiKey: hash.get('cle') });
+  history.replaceState(null, '', location.pathname + location.search);
+}
 
 initUI();
+if (store.get().settings.apiKey && hash.get('cle')) toast('🔑 Clé IA enregistrée sur cet appareil');
 
 // PWA : installation
 let deferredPrompt = null;
