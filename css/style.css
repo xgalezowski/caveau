@@ -259,6 +259,7 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 }
 .photo-shimmer { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(201, 162, 39, .1) 50%, transparent 80%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.photo-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .photo-regen { font-size: 12px; color: var(--creme-45); border: 1px solid var(--trait); border-radius: 999px; padding: 5px 13px; }
 .photo-regen:active { color: var(--or-clair); border-color: var(--or); }
 .carte-thumb { width: 42px; height: 52px; border-radius: 8px; object-fit: cover; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,.4); }

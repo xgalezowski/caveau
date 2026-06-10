@@ -275,15 +275,28 @@ function promptImage(b) {
   return `Photographie produit réaliste et élégante d'une bouteille de ${ident}, debout dans une cave à vin sombre, éclairage doux latéral, étiquette nette et lisible, reflets subtils sur le verre, cadrage vertical, bouteille entière centrée, ambiance feutrée et raffinée.`;
 }
 
-export async function genererImageBouteille(apiKey, b) {
+// sourceDataUrl : si fournie, on RETRAVAILLE cette photo (même bouteille,
+// décor plus stylé) plutôt que de générer une image ex nihilo.
+export async function genererImageBouteille(apiKey, b, sourceDataUrl = null) {
   if (!apiKey || fournisseur(apiKey) !== 'gemini') return null;
+  let parts;
+  if (sourceDataUrl) {
+    const m = sourceDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!m) return null;
+    parts = [
+      { inline_data: { mime_type: m[1], data: m[2] } },
+      { text: 'Garde EXACTEMENT cette même bouteille — forme, étiquette, couleur, niveau de remplissage, proportions — sans rien modifier de la bouteille elle-même. Replace-la simplement dans un décor élégant et sombre de cave à vin (ou de bar pour un spiritueux), éclairage doux et latéral, reflets subtils sur le verre, ambiance feutrée et raffinée, cadrage vertical, bouteille entière centrée. Seuls le décor et l\'éclairage changent.' },
+    ];
+  } else {
+    parts = [{ text: promptImage(b) }];
+  }
   const rep = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODELE_IMAGE}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: promptImage(b) }] }],
+        contents: [{ role: 'user', parts }],
         generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
       }),
     }

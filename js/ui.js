@@ -250,7 +250,7 @@ function rendreCave() {
 function carteHTML(b) {
   if (b.categorie === 'spiritueux') {
     return `<div class="carte" data-id="${b.id}">
-      ${b.image ? `<img class="carte-thumb" src="${b.image}" alt="">` : '<div class="carte-couleur c-spirit"></div>'}
+      ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : '<div class="carte-couleur c-spirit"></div>'}
       <div class="carte-corps">
         <div class="carte-nom">${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
         <div class="carte-meta">${esc(b.type || 'Spiritueux')}${b.age ? ` · ${b.age} ans` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
@@ -261,7 +261,7 @@ function carteHTML(b) {
   }
   const m = maturite(b);
   return `<div class="carte" data-id="${b.id}">
-    ${b.image ? `<img class="carte-thumb" src="${b.image}" alt="">` : `<div class="carte-couleur c-${b.couleur}"></div>`}
+    ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : `<div class="carte-couleur c-${b.couleur}"></div>`}
     <div class="carte-corps">
       <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
       <div class="carte-meta">${esc(b.appellation || b.region)}${b.prix ? ` · ${b.prix} €` : ''}${b.noteVivino ? ` · <span class="note-viv">★ ${String(b.noteVivino).replace('.', ',')}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
@@ -284,53 +284,62 @@ async function compresserDataUrl(dataUrl, maxH = 540, q = 0.82) {
   return cv.toDataURL('image/jpeg', q);
 }
 
-// Bloc image affiché en tête de fiche.
+// Image à afficher : la version stylisée si elle existe, sinon la photo prise.
+const imageAffichee = (b) => b.image || b.photoOrig || null;
+
+// Bloc image en tête de fiche. Aucune génération automatique : on montre la
+// vraie photo si on l'a, et des boutons explicites sinon.
 function blocImage(b) {
   const { apiKey } = store.get().settings;
-  if (b.image) {
-    return `<div class="photo-bouteille"><img src="${b.image}" alt="${esc(b.nom || '')}"><button class="photo-regen" data-regen="${b.id}">🔄 Régénérer</button></div>`;
+  const aff = imageAffichee(b);
+  if (aff) {
+    const revert = (b.image && b.photoOrig) ? `<button class="photo-regen" data-revert="${b.id}">↩︎ Ma photo</button>` : '';
+    const regen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${b.photoOrig ? '✨ Embellir le décor' : '🔄 Régénérer'}</button>` : '';
+    return `<div class="photo-bouteille"><img src="${aff}" alt="${esc(b.nom || '')}"><div class="photo-actions">${regen}${revert}</div></div>`;
   }
   if (apiKey) {
-    return `<div class="photo-bouteille" id="photo-slot"><div class="photo-charge"><span class="photo-shimmer"></span>🎨 Le sommelier dessine votre bouteille…</div></div>`;
+    return `<div class="photo-bouteille"><button class="photo-regen" data-regen="${b.id}">🎨 Générer une illustration</button></div>`;
   }
-  return ''; // pas de clé IA : pas d'image
+  return ''; // pas de clé IA et pas de photo : rien
 }
 
-// Lance la génération si nécessaire et branche le bouton « Régénérer ».
+// Rebranche les boutons du bloc image (régénérer / revenir à ma photo).
 function monterImage(id) {
-  const b = store.get().bottles.find((x) => x.id === id);
-  const { apiKey } = store.get().settings;
-  if (!b || !apiKey) return;
   const regen = $(`[data-regen="${id}"]`);
-  if (regen) regen.onclick = () => genererEtAfficher(id, true);
-  if (!b.image) genererEtAfficher(id, false);
+  if (regen) regen.onclick = () => genererEtAfficher(id);
+  const revert = $(`[data-revert="${id}"]`);
+  if (revert) revert.onclick = () => {
+    store.majBouteille(id, { image: null }); // retombe sur photoOrig
+    majBlocImage(id);
+    if (ecranActif === 'cave') rendreCave();
+  };
 }
 
-async function genererEtAfficher(id, forcer) {
+function majBlocImage(id) {
+  const b = store.get().bottles.find((x) => x.id === id);
+  const slot = $('.photo-bouteille');
+  if (slot && b) { slot.outerHTML = blocImage(b); monterImage(id); }
+}
+
+// Génère/restyle l'image. Si une photo existe (photoOrig), on la RETRAVAILLE
+// (même bouteille, plus beau décor) ; sinon on dessine d'après les caractéristiques.
+async function genererEtAfficher(id) {
   const { apiKey } = store.get().settings;
   const b = store.get().bottles.find((x) => x.id === id);
   if (!b || !apiKey) return;
-  if (b.image && !forcer) return;
-  // Pendant la régénération, on remet le chargeur
-  const conteneur = $('.photo-bouteille');
-  if (forcer && conteneur) conteneur.innerHTML = '<div class="photo-charge"><span class="photo-shimmer"></span>🎨 Nouvelle illustration…</div>';
+  const source = b.photoOrig || null;
+  const slot = $('.photo-bouteille');
+  if (slot) slot.innerHTML = `<div class="photo-charge"><span class="photo-shimmer"></span>${source ? '🎨 Mise en valeur de votre photo…' : '🎨 Le sommelier dessine votre bouteille…'}</div>`;
   try {
-    const brute = await genererImageBouteille(apiKey, b);
+    const brute = await genererImageBouteille(apiKey, b, source);
     if (!brute) throw new Error('Pas d\'image renvoyée');
     const vignette = await compresserDataUrl(brute);
     store.majBouteille(id, { image: vignette });
-    // N'actualise l'affichage que si la fiche est encore ouverte sur cette bouteille
-    const slot = $('.photo-bouteille');
-    if (slot && !$('#feuille').hidden) {
-      slot.innerHTML = `<img src="${vignette}" alt="${esc(b.nom || '')}"><button class="photo-regen" data-regen="${id}">🔄 Régénérer</button>`;
-      slot.querySelector('[data-regen]').onclick = () => genererEtAfficher(id, true);
-    }
+    if (!$('#feuille').hidden) majBlocImage(id);
     if (ecranActif === 'cave') rendreCave();
   } catch (e) {
-    const slot = $('.photo-bouteille');
-    if (slot) slot.innerHTML = `<button class="photo-regen" data-regen="${id}">🎨 Générer une image</button>`;
-    const btn = slot?.querySelector('[data-regen]');
-    if (btn) btn.onclick = () => genererEtAfficher(id, true);
+    if (!$('#feuille').hidden) majBlocImage(id);
+    toast(`Image impossible : ${e.message}`);
     console.warn('Image bouteille impossible', e);
   }
 }
@@ -731,8 +740,11 @@ function initAjouter() {
     const lus = [];
     for (let i = 0; i < fichiers.length; i++) {
       $('#note-photo-ia').textContent = `👁️ Lecture des étiquettes… ${i + 1} / ${fichiers.length}`;
+      let photoOrig = null;
       try {
-        const { base64, type } = await compresser(fichiers[i]);
+        const { base64, type, dataUrl } = await compresser(fichiers[i]);
+        // On garde la vraie photo prise (vignette légère) comme image de la bouteille
+        photoOrig = await compresserDataUrl(dataUrl, 680, 0.8);
         if (spirit) {
           const r = await analyserEtiquetteSpirit(apiKey, base64, type);
           lus.push({
@@ -740,7 +752,7 @@ function initAjouter() {
             type: TYPES_SPIRITUEUX.includes(r.type) ? r.type : 'Autre',
             domaine: r.marque || '', nom: r.nom || r.type || 'Spiritueux',
             age: r.age || null, alcool: r.alcool || null,
-            pays: r.pays || null, format: '75 cl', prix: null, qty: 1,
+            pays: r.pays || null, format: '75 cl', prix: null, qty: 1, photoOrig,
           });
         } else {
           const r = await analyserEtiquette(apiKey, base64, type);
@@ -752,12 +764,14 @@ function initAjouter() {
             couleur: COULEURS.includes(r.couleur) ? r.couleur : 'rouge',
             millesime: r.millesime || null,
             cepages: Array.isArray(r.cepages) ? r.cepages.join(', ') : (r.cepages || null),
-            alcool: r.alcool || null, prix: null, qty: 1, ...g,
+            alcool: r.alcool || null, prix: null, qty: 1, ...g, photoOrig,
           });
         }
       } catch (err) {
         toast(`Photo ${i + 1} illisible (${err.message}) — fiche vide à compléter`);
-        lus.push(spirit ? parseLigneSpirit('Spiritueux à identifier') : parseLigne('Vin à identifier'));
+        const base = spirit ? parseLigneSpirit('Spiritueux à identifier') : parseLigne('Vin à identifier');
+        if (photoOrig) base.photoOrig = photoOrig; // on garde quand même la photo
+        lus.push(base);
       }
     }
     $('#note-photo-ia').textContent = '';
@@ -775,7 +789,7 @@ async function compresser(file) {
   cv.width = Math.round(img.width * ratio); cv.height = Math.round(img.height * ratio);
   cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
   const dataUrl = cv.toDataURL('image/jpeg', .82);
-  return { base64: dataUrl.split(',')[1], type: 'image/jpeg' };
+  return { base64: dataUrl.split(',')[1], type: 'image/jpeg', dataUrl };
 }
 
 // Retire une fiche de l'aperçu sans toucher aux autres (tombstone) :
