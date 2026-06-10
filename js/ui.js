@@ -6,7 +6,7 @@ import { parseTexte, parseLigne } from './parser.js';
 import { recommander, surprise, argumentaire } from './sommelier.js';
 import { REGIONS, COULEURS, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
-import { analyserEtiquette, sommelierPlus, equivalents } from './ai.js';
+import { analyserEtiquette, sommelierPlus, equivalents, enrichirBouteille } from './ai.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -128,6 +128,7 @@ function ouvrirFiche(id) {
       <div style="flex:1"><label>Garde de</label><input id="f-gde" type="number" value="${b.gardeDe || ''}"></div>
       <div style="flex:1"><label>à</label><input id="f-gda" type="number" value="${b.gardeA || ''}"></div>
     </div>
+    ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
     <div class="ligne"><div style="flex:1"><label>Notes</label><input id="f-notes" value="${esc(b.notes || '')}"></div></div>
     <div class="actions">
       <button class="btn-or" id="f-sortir" style="flex:1.4">🍷 Je la sors</button>
@@ -241,7 +242,7 @@ function initAjouter() {
     if (!f) return;
     const { apiKey } = store.get().settings;
     if (!apiKey) {
-      $('#note-photo-ia').textContent = 'Astuce : ajoutez une clé API Claude dans Stats → Réglages pour la lecture automatique d\'étiquettes. En attendant, fiche manuelle pré-créée.';
+      $('#note-photo-ia').textContent = 'Astuce : ajoutez une clé IA (Gemini ou Claude) dans Stats → Réglages pour la lecture automatique d\'étiquettes. En attendant, fiche manuelle pré-créée.';
       aAjouter = [parseLigne(f.name.replace(/\.[a-z]+$/i, '').replace(/[-_]/g, ' '))];
       rendreApercu();
       return;
@@ -255,7 +256,7 @@ function initAjouter() {
         nom: r.nom || 'Vin', domaine: r.domaine || '', appellation: r.appellation || null,
         region: REGIONS.includes(r.region) ? r.region : 'Monde',
         couleur: COULEURS.includes(r.couleur) ? r.couleur : 'rouge',
-        millesime: r.millesime || null, prix: r.prixEstime || null, qty: 1, ...g,
+        millesime: r.millesime || null, prix: null, qty: 1, ...g,
       }];
       $('#note-photo-ia').textContent = '';
       rendreApercu();
@@ -297,11 +298,49 @@ function rendreApercu() {
         <div style="flex:1"><label>Prix (€)</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
         <div style="flex:1"><label>Quantité</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
       </div>
+      <p class="statut-enrich">${esc(b.prixInfo || '')}</p>
+      <div class="ligne"><div style="flex:1"><label>Fiche du vin</label><textarea data-k="description" rows="3" placeholder="Description, arômes, accords… (remplie automatiquement si clé IA)">${esc(b.description || '')}</textarea></div></div>
     </div>`).join('') +
-    `<button class="btn-or btn-large" id="btn-confirmer-ajout">Faire entrer en cave (${aAjouter.length})</button>`;
+    `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
+    <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée en cave (${aAjouter.length})</button>`;
+  enrichirApercu();
 
-  $('#btn-confirmer-ajout').onclick = () => {
-    document.querySelectorAll('.apercu').forEach((el) => {
+  $('#btn-confirmer-ajout').onclick = confirmerAjout;
+}
+
+// Recherche web (prix + fiche) bouteille par bouteille, sans bloquer l'édition.
+// Ne touche jamais un champ déjà rempli par l'utilisateur.
+async function enrichirApercu() {
+  const { apiKey } = store.get().settings;
+  if (!apiKey) return;
+  const lot = aAjouter; // si l'utilisateur relance une analyse, on abandonne ce lot
+  for (let i = 0; i < lot.length; i++) {
+    if (lot !== aAjouter) return;
+    const b = lot[i];
+    if (b.description) continue;
+    const carte = () => document.querySelector(`.apercu[data-i="${i}"]`);
+    const statut = (txt) => { const el = carte()?.querySelector('.statut-enrich'); if (el) el.textContent = txt; };
+    statut('🔎 Recherche du prix et de la fiche sur le web…');
+    try {
+      const r = await enrichirBouteille(apiKey, b);
+      if (lot !== aAjouter) return;
+      b.description = r.description; b.prixInfo = r.prixInfo;
+      const el = carte();
+      if (el) {
+        const prixInput = el.querySelector('[data-k="prix"]');
+        if (r.prix != null && prixInput && prixInput.value === '') { prixInput.value = r.prix; b.prix = r.prix; }
+        const desc = el.querySelector('[data-k="description"]');
+        if (desc && !desc.value) desc.value = r.description || '';
+        statut(`${r.prix != null ? '✅' : '⚠️'} ${r.prixInfo}${r.generique ? ' · fiche générique d\'appellation' : ''}`);
+      }
+    } catch (e) {
+      statut(`⚠️ Recherche web impossible (${e.message})`);
+    }
+  }
+}
+
+function confirmerAjout() {
+  document.querySelectorAll('.apercu').forEach((el) => {
       const b = aAjouter[+el.dataset.i];
       el.querySelectorAll('[data-k]').forEach((inp) => {
         const k = inp.dataset.k;
@@ -317,9 +356,8 @@ function rendreApercu() {
     $('#apercu-ajout').innerHTML = '';
     $('#saisie-texte').value = ''; $('#transcript-ajout').textContent = '';
     toast(`${n} bouteille${n > 1 ? 's' : ''} en cave. Santé !`);
-    parler(n > 1 ? `${n} bouteilles ajoutées à votre cave.` : 'Bouteille ajoutée à votre cave.', store.get().settings.voixActive);
-    majBadgeAlertes();
-  };
+  parler(n > 1 ? `${n} bouteilles ajoutées à votre cave.` : 'Bouteille ajoutée à votre cave.', store.get().settings.voixActive);
+  majBadgeAlertes();
 }
 
 /* ═══ SOMMELIER ═══ */
@@ -544,8 +582,8 @@ function rendreStats() {
       ${sorties.map((s) => `<div class="journal-item"><span>🍷 ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || '<p style="color:var(--creme-45);font-size:13px">Aucune sortie enregistrée.</p>'}
     </div>
     <div class="stat-bloc"><h3 class="sous-titre">Réglages</h3>
-      <label style="font-size:12px;color:var(--creme-45)">Clé API Claude (optionnel — débloque photo + Sommelier+)</label>
-      <input id="set-api" type="password" placeholder="sk-ant-…" value="${esc(settings.apiKey)}">
+      <label style="font-size:12px;color:var(--creme-45)">Clé API IA — Gemini ou Claude (débloque photo, prix &amp; fiches web, Sommelier+)</label>
+      <input id="set-api" type="password" placeholder="AQ.… / AIza… / sk-ant-…" value="${esc(settings.apiKey)}">
       <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;color:var(--creme-70)">
         <input type="checkbox" id="set-voix" style="width:auto" ${settings.voixActive ? 'checked' : ''}> Le sommelier me répond à voix haute
       </label>

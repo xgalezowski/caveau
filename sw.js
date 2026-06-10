@@ -1,5 +1,5 @@
 // Service worker : cache-first pour un fonctionnement 100 % hors-ligne.
-const CACHE = 'caveau-v1';
+const CACHE = 'caveau-v2';
 const ASSETS = [
   './', 'index.html', 'css/style.css',
   'js/app.js', 'js/ui.js', 'js/store.js', 'js/parser.js', 'js/sommelier.js',
