@@ -1,9 +1,9 @@
 // Service worker : cache-first pour un fonctionnement 100 % hors-ligne.
-const CACHE = 'caveau-v17';
+const CACHE = 'caveau-v18';
 const ASSETS = [
   './', 'index.html', 'css/style.css',
   'js/app.js', 'js/ui.js', 'js/store.js', 'js/parser.js', 'js/sommelier.js',
-  'js/wine-data.js', 'js/voice.js', 'js/ai.js',
+  'js/wine-data.js', 'js/voice.js', 'js/ai.js', 'js/fx.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

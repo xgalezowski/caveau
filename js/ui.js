@@ -7,6 +7,7 @@ import { recommander, surprise, argumentaire } from './sommelier.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
 import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille } from './ai.js';
+import { vibrer, transitionEcran } from './fx.js';
 
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
 // sinon repli sur la synthèse du navigateur.
@@ -66,15 +67,30 @@ const PHRASES_SORTIE = [
 ];
 
 /* ═══ Navigation ═══ */
+const ORDRE_ONGLETS = ['cave', 'ajouter', 'sommelier', 'alertes', 'stats'];
+
+// Direction de la chorégraphie selon d'où l'on vient et où l'on va.
+function sensEcran(de, vers) {
+  if (vers === 'profil') return 'profil';
+  if (de === 'profil') return 'profil-retour';
+  return ORDRE_ONGLETS.indexOf(vers) >= ORDRE_ONGLETS.indexOf(de) ? 'avant' : 'arriere';
+}
+
 export function montrerEcran(nom) {
-  // Mémorise d'où l'on vient avant d'entrer dans le profil (pour le retour).
-  if (nom === 'profil' && ecranActif !== 'profil') ecranAvantProfil = ecranActif;
-  ecranActif = nom;
-  document.querySelectorAll('.ecran').forEach((e) => { e.hidden = e.id !== `ecran-${nom}`; });
-  // Le profil n'est pas dans la barre du bas : aucun onglet actif dans ce cas.
-  document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('actif', b.dataset.ecran === nom));
-  rendre(nom);
-  window.scrollTo({ top: 0 });
+  const sens = sensEcran(ecranActif, nom);
+  const changement = nom !== ecranActif;
+  const appliquer = () => {
+    // Mémorise d'où l'on vient avant d'entrer dans le profil (pour le retour).
+    if (nom === 'profil' && ecranActif !== 'profil') ecranAvantProfil = ecranActif;
+    ecranActif = nom;
+    document.querySelectorAll('.ecran').forEach((e) => { e.hidden = e.id !== `ecran-${nom}`; });
+    // Le profil n'est pas dans la barre du bas : aucun onglet actif dans ce cas.
+    document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('actif', b.dataset.ecran === nom));
+    rendre(nom);
+    window.scrollTo({ top: 0 });
+  };
+  if (changement) transitionEcran(sens, appliquer);
+  else appliquer();
 }
 
 function rendre(nom) {
@@ -139,6 +155,32 @@ function brancherSelectsRegion(racine) {
 function optionsListe(liste, selection) {
   const tout = [...new Set([...liste, selection])].filter(Boolean);
   return tout.map((x) => `<option ${x === selection ? 'selected' : ''}>${esc(x)}</option>`).join('');
+}
+
+// Entrée en cascade : chaque carte arrive avec un léger décalage, comme un
+// jeu de cartes qu'on étale. Plafonné pour que les longues listes restent vives.
+function cascade(parent) {
+  parent.querySelectorAll('.carte, .groupe-region').forEach((el, i) => {
+    el.style.animationDelay = `${Math.min(i * 26, 320)}ms`;
+  });
+}
+
+// Compteur animé : le nombre monte vers sa cible en ~700 ms (freiné en fin
+// de course). Le suffixe (€…) reste accroché au nombre.
+function compterVers(el, cible, suffixe = '') {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || cible <= 0) {
+    el.textContent = `${cible}${suffixe}`;
+    return;
+  }
+  const t0 = performance.now();
+  const duree = 700;
+  const pas = (t) => {
+    const p = Math.min(1, (t - t0) / duree);
+    const freine = 1 - Math.pow(1 - p, 3); // ease-out cubique
+    el.textContent = `${Math.round(cible * freine)}${suffixe}`;
+    if (p < 1) requestAnimationFrame(pas);
+  };
+  requestAnimationFrame(pas);
 }
 
 /* ═══ Toast ═══ */
@@ -229,6 +271,7 @@ function rendreCave() {
     const nbB = liste.reduce((s, b) => s + b.qty, 0);
     $('#liste-cave').innerHTML = `<div class="groupe-region">🍷 À boire maintenant <small>${nbB} BTL</small></div>` +
       liste.map(carteHTML).join('');
+    cascade($('#liste-cave'));
     $('#liste-cave').querySelectorAll('.carte').forEach((c) => c.onclick = () => ouvrirFiche(c.dataset.id));
     return;
   }
@@ -249,6 +292,7 @@ function rendreCave() {
       liste.map(carteHTML).join('');
   }).join('');
 
+  cascade($('#liste-cave'));
   $('#liste-cave').querySelectorAll('.carte').forEach((c) => c.onclick = () => ouvrirFiche(c.dataset.id));
 }
 
@@ -553,6 +597,7 @@ function ouvrirFicheSpirit(b) {
   };
   $('#f-sortir').onclick = () => {
     store.sortirBouteille(id, '', '');
+    vibrer('sortie');
     montrerFeuille(false); rendre(ecranActif);
     const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
     toast(restant > 0 ? `Sortie du bar. Il en reste ${restant}.` : 'Dernière bouteille sortie du bar — pensez au rachat 😉');
@@ -587,6 +632,7 @@ function dialogueSortie(id) {
   montrerFeuille(true);
   $('#s-ok').onclick = () => {
     store.sortirBouteille(id, $('#s-occ').value.trim(), $('#s-note').value.trim());
+    vibrer('sortie');
     montrerFeuille(false); rendre(ecranActif);
     const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
     toast(restant > 0 ? `Bonne dégustation ! Il en reste ${restant}.` : 'C\'était la dernière — pensez au rachat 😉');
@@ -602,6 +648,7 @@ function montrerFeuille(visible) {
   $('#feuille').hidden = !visible;
   $('#voile').hidden = !visible;
   $('#feuille').style.transform = ''; // annule un éventuel glissé en cours
+  if (visible) vibrer('tic');
   if (visible && !feuilleOuverte) {
     feuilleOuverte = true;
     // Empile un état d'historique : le bouton/geste « retour » d'Android
@@ -623,26 +670,53 @@ window.addEventListener('popstate', () => {
   }
 });
 
-// Glisser la poignée vers le bas pour refermer la modale (geste natif).
+// Glisser la poignée vers le bas pour refermer la modale, avec une vraie
+// physique : la feuille suit le doigt, un mouvement vif suffit à la lancer
+// (vélocité), sinon elle revient se caler avec un léger rebond de ressort.
 function brancherGlissementFeuille() {
   const feuille = $('#feuille');
+  const voile = $('#voile');
   const poignee = $('#feuille-poignee');
-  let y0 = null;
-  let dy = 0;
+  let y0 = null, dy = 0, yPrec = 0, tPrec = 0, vitesse = 0;
+
   poignee.addEventListener('touchstart', (e) => {
-    y0 = e.touches[0].clientY; dy = 0;
+    y0 = yPrec = e.touches[0].clientY;
+    tPrec = performance.now();
+    dy = 0; vitesse = 0;
     feuille.style.transition = 'none';
+    voile.style.transition = 'none';
   }, { passive: true });
+
   poignee.addEventListener('touchmove', (e) => {
     if (y0 == null) return;
-    dy = Math.max(0, e.touches[0].clientY - y0); // vers le bas uniquement
-    feuille.style.transform = `translateY(${dy}px)`;
+    const y = e.touches[0].clientY;
+    const t = performance.now();
+    vitesse = (y - yPrec) / Math.max(1, t - tPrec); // px/ms, signé
+    yPrec = y; tPrec = t;
+    dy = y - y0;
+    // Vers le haut : résistance élastique (la feuille « tire » sur sa butée).
+    const affiche = dy >= 0 ? dy : -Math.pow(-dy, 0.65);
+    feuille.style.transform = `translateY(${affiche}px)`;
+    // Le voile s'éclaircit à mesure qu'on tire — donne la sensation de profondeur.
+    voile.style.opacity = String(Math.max(0.25, 1 - Math.max(0, dy) / 480));
   }, { passive: true });
+
   poignee.addEventListener('touchend', () => {
     if (y0 == null) return;
-    feuille.style.transition = '';
-    if (dy > 90) { feuille.style.transform = ''; montrerFeuille(false); }
-    else feuille.style.transform = '';
+    voile.style.transition = '';
+    voile.style.opacity = '';
+    const lancee = dy > 130 || vitesse > 0.55; // distance OU pichenette rapide
+    if (lancee) {
+      vibrer('tic');
+      feuille.style.transition = 'transform .22s cubic-bezier(.4, .7, .6, 1)';
+      feuille.style.transform = 'translateY(105%)';
+      setTimeout(() => { feuille.style.transition = ''; montrerFeuille(false); }, 210);
+    } else {
+      // ressort : dépasse légèrement sa position puis se cale
+      feuille.style.transition = 'transform .45s cubic-bezier(.18, 1.35, .35, 1)';
+      feuille.style.transform = '';
+      setTimeout(() => { feuille.style.transition = ''; }, 460);
+    }
     y0 = null;
   });
 }
@@ -983,6 +1057,7 @@ function confirmerAjout() {
   aAjouter = [];
   $('#apercu-ajout').innerHTML = '';
   $('#saisie-texte').value = ''; $('#transcript-ajout').textContent = '';
+  vibrer('succes');
   toast(`${n} ${n > 1 ? 'entrées' : 'entrée'} en cave. Santé !`);
   dire(n > 1 ? alea(PHRASES_AJOUT_LOT)(n) : alea(PHRASES_AJOUT));
   majBadgeAlertes();
@@ -1236,9 +1311,9 @@ function rendreStats() {
 
   $('#contenu-stats').innerHTML = `
     <div class="bandeau-valeur" style="margin-bottom:18px">
-      <div><div class="v">${nb}</div><div class="l">bouteilles</div></div>
-      <div id="cellule-valeur-stats" title="Toucher pour masquer/afficher"><div class="v">${valeurTxt}</div><div class="l">valeur cave ${settings.valeurCachee ? '👁' : ''}</div></div>
-      <div><div class="v">${enCave.length}</div><div class="l">références</div></div>
+      <div><div class="v" id="stat-nb">${nb}</div><div class="l">bouteilles</div></div>
+      <div id="cellule-valeur-stats" title="Toucher pour masquer/afficher"><div class="v" id="stat-valeur">${valeurTxt}</div><div class="l">valeur cave ${settings.valeurCachee ? '👁' : ''}</div></div>
+      <div><div class="v" id="stat-refs">${enCave.length}</div><div class="l">références</div></div>
     </div>
     <div class="stat-bloc"><h3 class="sous-titre">Par couleur</h3>${jauges(parGroupe(vins, 'couleur')) || '—'}</div>
     <div class="stat-bloc"><h3 class="sous-titre">Par région</h3>${jauges(parGroupe(vins, 'region'))}</div>
@@ -1252,6 +1327,15 @@ function rendreStats() {
     store.majSettings({ valeurCachee: !store.get().settings.valeurCachee });
     rendreStats();
   };
+
+  // Chiffres qui montent + jauges qui se remplissent en cascade (l'animation
+  // CSS `remplir` se déclenche à l'insertion, on ne fait qu'étaler les départs).
+  compterVers($('#stat-nb'), nb);
+  compterVers($('#stat-refs'), enCave.length);
+  if (!settings.valeurCachee) compterVers($('#stat-valeur'), Math.round(valeur), ' €');
+  $('#contenu-stats').querySelectorAll('.rempli').forEach((r, i) => {
+    r.style.animationDelay = `${Math.min(i * 45, 500)}ms`;
+  });
 }
 
 /* ═══ PROFIL UTILISATEUR ═══ */
@@ -1384,6 +1468,7 @@ function rendreProfil() {
   $('#p-plan-toggle').onclick = () => {
     const premium = store.get().settings.plan === 'premium';
     store.majSettings({ plan: premium ? 'gratuit' : 'premium' });
+    if (!premium) vibrer('succes');
     rendreProfil();
     toast(premium ? 'Retour à l’offre gratuite' : '✨ Bienvenue dans Caveau Premium !');
   };
@@ -1429,6 +1514,10 @@ export function initUI() {
   $('#avatar-entete').onclick = () => montrerEcran('profil');
   $('#btn-retour-profil').onclick = () => montrerEcran(ecranAvantProfil);
   majAvatar();
+  // Haptique « tic » sur tout ce qui se tape : onglets, segments, puces, avatar.
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.nav-item, .seg, .puce, .avatar-entete')) vibrer('tic');
+  });
   $('#voile').onclick = () => montrerFeuille(false);
   $('#feuille-fermer').onclick = () => montrerFeuille(false);
   brancherGlissementFeuille();
