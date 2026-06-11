@@ -42,6 +42,8 @@ export function creerOrbe(el) {
     PRESERVE: localStorage.getItem('caveau:debug-fluide') === '1',
   });
 
+  window.__sim = sim; // poignée de debug
+
   let etatCourant = 'repos';
   let audioCtx = null, flux = null, analyseur = null, donneesAudio = null;
   let volLisse = 0, volPrec = 0;
@@ -59,7 +61,7 @@ export function creerOrbe(el) {
   }
 
   function goutteDouce() {
-    eclat(alea(0.38, 0.62), alea(0.42, 0.66), alea(-90, 90), alea(-130, 40), 0.8);
+    eclat(alea(0.35, 0.65), alea(0.4, 0.68), alea(-120, 120), alea(-160, 60), 1.35);
   }
 
   function rafaleVoix(force) {
@@ -70,7 +72,7 @@ export function creerOrbe(el) {
       eclat(
         0.5 + Math.cos(a) * 0.06, 0.52 + Math.sin(a) * 0.06,
         Math.cos(a) * v, Math.sin(a) * v,
-        0.9 + force * 0.8
+        1.15 + force * 0.9
       );
     }
   }
@@ -82,7 +84,7 @@ export function creerOrbe(el) {
     horloge++;
     boostVoix *= 0.86;
 
-    if (etatCourant === 'repos' && horloge % 16 === 0) goutteDouce();
+    if (etatCourant === 'repos' && horloge % 8 === 0) goutteDouce();
 
     if (etatCourant === 'ecoute') {
       const voix = Math.max(volLisse, boostVoix);
