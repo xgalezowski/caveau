@@ -1275,7 +1275,14 @@ function initSommelier() {
     orbe.ecouter();
     let texteFinal = '';
     dicteeEnCours = dicter({
-      onResult: (txt) => { texteFinal = txt; $('#orbe-transcript').textContent = txt; },
+      onResult: (txt) => {
+        // chaque fragment reconnu fait réagir la matière (essentiel sur
+        // Android, où l'amplitude micro n'est pas accessible pendant la dictée)
+        const croissance = txt.length - texteFinal.length;
+        if (croissance > 0) orbe.impulsionVoix(Math.min(1, croissance / 14));
+        texteFinal = txt;
+        $('#orbe-transcript').textContent = txt;
+      },
       onEnd: () => {
         dicteeEnCours = null;
         if (texteFinal) lancerConseil(texteFinal);
@@ -1617,7 +1624,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v21</p>
+      <p class="profil-version">Caveau · v22</p>
     </div>`;
 
   // — Identité —
