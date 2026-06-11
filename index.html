@@ -33,8 +33,8 @@
   <!-- ═══ CAVE ═══ -->
   <section class="ecran" id="ecran-cave" hidden>
     <div class="segmente" id="categorie-cave">
-      <button class="seg actif" data-cat="vin">🍷 Vins</button>
-      <button class="seg" data-cat="spiritueux">🥃 Spiritueux</button>
+      <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> Vins</button>
+      <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> Spiritueux</button>
     </div>
     <div class="bandeau-valeur" id="bandeau-valeur"></div>
     <div class="barre-recherche">
@@ -48,14 +48,14 @@
   <section class="ecran" id="ecran-ajouter" hidden>
     <h2 class="titre-ecran">Faire entrer<br><em>en cave</em></h2>
     <div class="segmente" id="categorie-ajout">
-      <button class="seg actif" data-cat="vin">🍷 Vin</button>
-      <button class="seg" data-cat="spiritueux">🥃 Spiritueux</button>
+      <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> Vin</button>
+      <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> Spiritueux</button>
     </div>
     <div class="segmente" id="modes-ajout">
-      <button class="seg actif" data-mode="texte">✍️ Texte</button>
-      <button class="seg" data-mode="voix">🎙️ Voix</button>
-      <button class="seg" data-mode="photo">📷 Photo</button>
-      <button class="seg" data-mode="forme">📋 Fiche</button>
+      <button class="seg actif" data-mode="texte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.12 2.12 0 0 1 3 3L8 19l-4 1Z"/></svg> Texte</button>
+      <button class="seg" data-mode="voix"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg> Voix</button>
+      <button class="seg" data-mode="photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg> Photo</button>
+      <button class="seg" data-mode="forme"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg> Fiche</button>
     </div>
 
     <div class="mode-panneau" id="panneau-texte">
@@ -126,21 +126,45 @@
   <!-- ═══ SOMMELIER ═══ -->
   <section class="ecran" id="ecran-sommelier" hidden>
     <h2 class="titre-ecran">Qu'est-ce qu'on<br><em>mange ce soir ?</em></h2>
-    <div class="champ-repas">
-      <textarea id="saisie-repas" rows="2" placeholder="Ex : côte de bœuf grillée et cèpes…"></textarea>
-      <button class="micro micro-mini" id="btn-micro-repas" aria-label="Dicter le repas">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+
+    <!-- L'orbe : le « corps » du sommelier. Tap → dictée, le visuel réagit à la voix. -->
+    <div class="orbe-scene" id="orbe-scene">
+      <button class="orbe" id="orbe" data-etat="repos" aria-label="Parler au sommelier">
+        <span class="orbe-onde"></span>
+        <span class="orbe-onde onde-2"></span>
+        <span class="orbe-halo"></span>
+        <span class="orbe-coeur"></span>
+        <span class="orbe-verre"></span>
+        <svg class="orbe-icone" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
+      <p class="orbe-statut" id="orbe-statut">Touchez l'orbe et dites votre repas</p>
+      <p class="orbe-transcript" id="orbe-transcript" aria-live="polite"></p>
     </div>
+
     <div class="segmente" id="occasions">
       <button class="seg" data-occ="semaine">Semaine</button>
       <button class="seg actif" data-occ="weekend">Week-end</button>
       <button class="seg" data-occ="grande">Grande occasion</button>
     </div>
-    <button class="btn-or btn-large" id="btn-conseiller">Conseille-moi</button>
-    <button class="btn-fantome" id="btn-surprise">🎲 Ce soir je bois quoi ?</button>
+
+    <!-- Inspirations dérivées du contenu réel de la cave : un tap = une reco -->
+    <div class="chips-inspi" id="chips-inspi"></div>
+
+    <button class="btn-discret lien-ecrire" id="lien-ecrire">ou écrivez votre repas</button>
+    <div class="champ-repas" id="bloc-ecrire" hidden>
+      <textarea id="saisie-repas" rows="2" placeholder="Ex : côte de bœuf grillée et cèpes…"></textarea>
+      <button class="micro-mini btn-envoi" id="btn-conseiller" aria-label="Demander conseil">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6m-6 6l6-6 6 6"/></svg>
+      </button>
+    </div>
+
+    <button class="btn-fantome" id="btn-surprise">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.15" fill="currentColor" stroke="none"/></svg>
+      Ce soir je bois quoi ?
+    </button>
+
     <div id="resultats-sommelier"></div>
-    <div class="sommelier-plus" id="sommelier-plus"></div>
+    <div class="historique-sommelier" id="historique-sommelier"></div>
   </section>
 
   <!-- ═══ ALERTES ═══ -->

@@ -89,13 +89,17 @@ export function scoreBouteille(b, profil, occasion, annee) {
   let score = 0;
   const raisons = [];
 
+  // Données importées : la couleur peut arriver capitalisée (« Rouge ») —
+  // sans minuscule forcée, le lookup échoue et la bouteille disparaît en silence.
+  const couleur = String(b.couleur || '').toLowerCase();
+
   // 1. Accord couleur (déterminant)
-  const wCouleur = profil.cible[b.couleur] || 0;
+  const wCouleur = profil.cible[couleur] || 0;
   if (wCouleur === 0) return { score: -1, raisons: [] }; // hors accord
   score += wCouleur * 10;
 
   // 2. Corps
-  const corps = corpsDe(b.region, b.couleur);
+  const corps = corpsDe(b.region, couleur);
   const deltaCorps = Math.abs(corps - profil.corps);
   score += (2 - deltaCorps) * 4;
   if (deltaCorps === 0) raisons.push('structure parfaitement calibrée pour le plat');
@@ -165,4 +169,12 @@ export function argumentaire(choix, profil) {
   const corpsTxt = ['', 'tout en finesse', 'équilibré', 'puissant et structuré'][corpsDe(b.region, b.couleur)];
   const raisons = choix.raisons.length ? ` — ${choix.raisons.slice(0, 2).join(', ')}` : '';
   return `${intro}je vous conseille le ${nom} (${b.region}, ${b.couleur}), ${corpsTxt}${raisons}.`;
+}
+
+// Score brut → pourcentage d'accord affichable. Le maximum théorique est ~62
+// (couleur 30 + corps 8 + région 9 + maturité 10 + budget 4 + stock 1) ;
+// on borne à [45, 98] : en-dessous la reco n'aurait pas été retenue,
+// et 100 % serait un mensonge de sommelier.
+export function pctAccord(score) {
+  return Math.max(45, Math.min(98, Math.round((score / 62) * 100)));
 }

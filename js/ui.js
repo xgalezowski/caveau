@@ -3,7 +3,8 @@
 
 import { store } from './store.js';
 import { parseTexte, parseLigne, parseTexteSpirit, parseLigneSpirit } from './parser.js';
-import { recommander, surprise, argumentaire } from './sommelier.js';
+import { recommander, surprise, argumentaire, pctAccord } from './sommelier.js';
+import { creerOrbe } from './orbe.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
 import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille } from './ai.js';
@@ -18,6 +19,20 @@ function dire(texte) {
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ═══ Icônes SVG au trait — remplacent les émojis (rendu net, cohérent
+   avec la nav, et identique sur tous les appareils) ═══ */
+const ICONES = {
+  verre: '<path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/>',
+  flacon: '<path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/>',
+  photo: '<path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  etincelles: '<path d="M12 4l1.3 3.7L17 9l-3.7 1.3L12 14l-1.3-3.7L7 9l3.7-1.3L12 4Z"/><path d="M18.5 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2Z"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0-2.5 6M20 5v6h-6"/>',
+  de: '<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.15" fill="currentColor" stroke="none"/>',
+  fiche: '<path d="M7 3h7l4 4v14H7V3Z"/><path d="M14 3v4h4"/>',
+};
+const ico = (nom, t = 15) => `<svg viewBox="0 0 24 24" width="${t}" height="${t}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px">${ICONES[nom]}</svg>`;
+const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let ecranActif = 'cave';
 let ecranAvantProfil = 'cave'; // pour le bouton « ‹ Retour » du profil
@@ -97,7 +112,7 @@ function rendre(nom) {
   if (nom === 'cave') rendreCave();
   if (nom === 'alertes') rendreAlertes();
   if (nom === 'stats') rendreStats();
-  if (nom === 'sommelier') rendreSommelierPlus();
+  if (nom === 'sommelier') rendreSommelier();
   if (nom === 'profil') rendreProfil();
   majBadgeAlertes();
 }
@@ -214,7 +229,7 @@ function rendreCave() {
   // Filtres : couleur pour les vins · type + ouverte/fermée pour les spiritueux
   if (catCave === 'vin') {
     $('#filtres-couleur').innerHTML =
-      `<button class="puce puce-aboire ${filtreMaturite === 'aboire' ? 'actif' : ''}" data-mat="aboire" style="margin-right:10px">🍷 À boire</button>` +
+      `<button class="puce puce-aboire ${filtreMaturite === 'aboire' ? 'actif' : ''}" data-mat="aboire" style="margin-right:10px">${ico('verre', 12)} À boire</button>` +
       ['toutes', ...COULEURS].map((c) =>
         `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
       ).join('');
@@ -269,7 +284,7 @@ function rendreCave() {
       (PRIO_DEGUSTATION[maturite(a).code] - PRIO_DEGUSTATION[maturite(z).code])
       || (a.gardeA || 9999) - (z.gardeA || 9999));
     const nbB = liste.reduce((s, b) => s + b.qty, 0);
-    $('#liste-cave').innerHTML = `<div class="groupe-region">🍷 À boire maintenant <small>${nbB} BTL</small></div>` +
+    $('#liste-cave').innerHTML = `<div class="groupe-region">${ico('verre', 16)} À boire maintenant <small>${nbB} BTL</small></div>` +
       liste.map(carteHTML).join('');
     cascade($('#liste-cave'));
     $('#liste-cave').querySelectorAll('.carte').forEach((c) => c.onclick = () => ouvrirFiche(c.dataset.id));
@@ -345,14 +360,14 @@ function blocImage(b) {
   const aff = imageAffichee(b);
   const input = `<input type="file" accept="image/*" data-photo="${b.id}" hidden>`;
   if (aff) {
-    const regen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${b.photoOrig ? '✨ Embellir le décor' : '🔄 Régénérer'}</button>` : '';
+    const regen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${b.photoOrig ? `${ico('etincelles', 12)} Embellir le décor` : `${ico('refresh', 12)} Régénérer`}</button>` : '';
     const revert = (b.image && b.photoOrig) ? `<button class="photo-regen" data-revert="${b.id}">↩︎ Ma photo</button>` : '';
-    const photo = `<button class="photo-regen" data-photobtn="${b.id}">📷 ${b.photoOrig ? 'Changer la photo' : 'Mettre ma photo'}</button>`;
+    const photo = `<button class="photo-regen" data-photobtn="${b.id}">${ico('photo', 12)} ${b.photoOrig ? 'Changer la photo' : 'Mettre ma photo'}</button>`;
     return `<div class="photo-bouteille"><img src="${aff}" alt="${esc(b.nom || '')}"><div class="photo-actions">${regen}${revert}${photo}</div>${input}</div>`;
   }
   // Pas encore d'image : ajouter sa photo (toujours) + générer (si clé)
-  const gen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">🎨 Générer une illustration</button>` : '';
-  return `<div class="photo-bouteille"><div class="photo-actions"><button class="photo-regen" data-photobtn="${b.id}">📷 Ajouter ma photo</button>${gen}</div>${input}</div>`;
+  const gen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${ico('etincelles', 12)} Générer une illustration</button>` : '';
+  return `<div class="photo-bouteille"><div class="photo-actions"><button class="photo-regen" data-photobtn="${b.id}">${ico('photo', 12)} Ajouter ma photo</button>${gen}</div>${input}</div>`;
 }
 
 // Rebranche les boutons du bloc image (photo / régénérer / revenir à ma photo).
@@ -378,7 +393,7 @@ function monterImage(id) {
 // Attache la photo prise par l'utilisateur comme image de la bouteille.
 async function attacherPhoto(id, file) {
   const slot = $('.photo-bouteille');
-  if (slot) slot.innerHTML = '<div class="photo-charge"><span class="photo-shimmer"></span>📷 Enregistrement de votre photo…</div>';
+  if (slot) slot.innerHTML = '<div class="photo-charge"><span class="photo-shimmer"></span>Enregistrement de votre photo…</div>';
   try {
     const { dataUrl } = await compresser(file);
     const vignette = await compresserDataUrl(dataUrl, 680, 0.8);
@@ -406,7 +421,7 @@ async function genererEtAfficher(id) {
   if (!b || !apiKey) return;
   const source = b.photoOrig || null;
   const slot = $('.photo-bouteille');
-  if (slot) slot.innerHTML = `<div class="photo-charge"><span class="photo-shimmer"></span>${source ? '🎨 Mise en valeur de votre photo…' : '🎨 Le sommelier dessine votre bouteille…'}</div>`;
+  if (slot) slot.innerHTML = `<div class="photo-charge"><span class="photo-shimmer"></span>${source ? 'Mise en valeur de votre photo…' : 'Le sommelier dessine votre bouteille…'}</div>`;
   try {
     const brute = await genererImageBouteille(apiKey, b, source);
     if (!brute) throw new Error('Pas d\'image renvoyée');
@@ -467,12 +482,12 @@ function ouvrirFiche(id) {
       </button>
     </div>
     <div class="actions">
-      <button class="btn-or" id="f-sortir" style="flex:1.4">🍷 Je la sors</button>
+      <button class="btn-or" id="f-sortir" style="flex:1.4">${ico('verre', 14)} Je la sors</button>
       <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
     </div>
     <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
     <div id="f-equiv"></div>
-    ${store.get().settings.apiKey ? '<button class="btn-fantome" id="f-btn-equiv">✨ Trouver des équivalents (IA)</button>' : ''}
+    ${store.get().settings.apiKey ? `<button class="btn-fantome" id="f-btn-equiv">${ico('etincelles', 14)} Trouver des équivalents (IA)</button>` : ''}
     <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
   montrerFeuille(true);
   monterImage(id);
@@ -514,12 +529,12 @@ function ouvrirFiche(id) {
   };
   const btnEq = $('#f-btn-equiv');
   if (btnEq) btnEq.onclick = async () => {
-    btnEq.textContent = '✨ Le caviste réfléchit…'; btnEq.disabled = true;
+    btnEq.innerHTML = `${ico('etincelles', 14)} Le caviste réfléchit…`; btnEq.disabled = true;
     try {
       const rep = await equivalents(store.get().settings.apiKey, b);
       $('#f-equiv').innerHTML = `<div class="bulle-ia">${esc(rep)}</div>`;
     } catch (e) { toast(e.message); }
-    btnEq.textContent = '✨ Trouver des équivalents (IA)'; btnEq.disabled = false;
+    btnEq.innerHTML = `${ico('etincelles', 14)} Trouver des équivalents (IA)`; btnEq.disabled = false;
   };
 }
 
@@ -559,7 +574,7 @@ function ouvrirFicheSpirit(b) {
       </button>
     </div>
     <div class="actions">
-      <button class="btn-or" id="f-sortir" style="flex:1.4">🥃 Je le sors de mon bar</button>
+      <button class="btn-or" id="f-sortir" style="flex:1.4">${ico('flacon', 14)} Je le sors de mon bar</button>
       <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
     </div>
     <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
@@ -959,7 +974,7 @@ function rendreApercuSpirit() {
   if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
   $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
     <div class="apercu" data-i="${i}">
-      <div class="apercu-tete"><h4>🥃 Spiritueux ${aAjouter.length > 1 ? i + 1 : 'détecté'}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter ce spiritueux">✕ Retirer</button></div>
+      <div class="apercu-tete"><h4>${ico('flacon', 15)} Spiritueux ${aAjouter.length > 1 ? i + 1 : 'détecté'}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter ce spiritueux">✕ Retirer</button></div>
       <div class="ligne">
         <div style="flex:1"><label>Type</label><select data-k="type">${optionsListe(TYPES_SPIRITUEUX, b.type)}</select></div>
         <div style="flex:1.3"><label>Marque / distillerie</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
@@ -1090,63 +1105,213 @@ async function enrichirEnCave(id) {
   }
 }
 
-/* ═══ SOMMELIER ═══ */
+/* ═══ SOMMELIER — vocal d'abord, autour de l'orbe ═══ */
+let orbe = null;
+let dicteeEnCours = null;
+const STATUT_REPOS = 'Touchez l\'orbe et dites votre repas';
+
+const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const statutOrbe = (txt) => { $('#orbe-statut').textContent = txt; };
+
+/* Historique des 3 dernières demandes, rappelables d'un tap */
+const HISTO_CLE = 'caveau:repas-recents';
+const lireHisto = () => { try { return JSON.parse(localStorage.getItem(HISTO_CLE)) || []; } catch { return []; } };
+function pousserHisto(q) {
+  localStorage.setItem(HISTO_CLE, JSON.stringify([q, ...lireHisto().filter((x) => x !== q)].slice(0, 3)));
+}
+
+/* Inspirations : des plats suggérés selon les couleurs réellement en cave */
+const INSPIRATIONS = {
+  rouge: ['Côte de bœuf', 'Plateau de fromages', 'Magret de canard'],
+  blanc: ['Poisson grillé', 'Volaille à la crème', 'Fruits de mer'],
+  'rosé': ['Barbecue', 'Cuisine épicée'],
+  effervescent: ['Apéritif', 'Huîtres'],
+  moelleux: ['Foie gras', 'Tarte aux fruits'],
+};
+function rendreSommelier() {
+  const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
+  const couleurs = [...new Set(enCave.map((b) => String(b.couleur || '').toLowerCase()))];
+  const plats = [...new Set(couleurs.flatMap((c) => INSPIRATIONS[c] || []))].slice(0, 6);
+  $('#chips-inspi').innerHTML = plats.map((p) => `<button class="chip-inspi">${esc(p)}</button>`).join('');
+  $('#chips-inspi').querySelectorAll('.chip-inspi').forEach((el) => {
+    el.onclick = () => { vibrer('tic'); lancerConseil(el.textContent); };
+  });
+  if (!voixDisponible) statutOrbe('Choisissez un plat ou écrivez votre repas');
+  rendreHisto();
+}
+function rendreHisto() {
+  $('#historique-sommelier').innerHTML = lireHisto()
+    .map((q) => `<button class="chip-histo">${esc(q)}</button>`).join('');
+  $('#historique-sommelier').querySelectorAll('.chip-histo').forEach((el) => {
+    el.onclick = () => lancerConseil(el.textContent);
+  });
+}
+
+const MAT_LABELS = { apogee: 'À son apogée', urgent: 'À boire vite', approche: 'Bientôt prête', jeune: 'Encore jeune', passe: 'Sur le déclin' };
+function carteReco(c, i, profil) {
+  const b = c.bottle;
+  const pct = pctAccord(c.score);
+  const m = c.maturite;
+  return `
+    <div class="reco ${i === 0 ? 'premier' : ''}" data-id="${b.id}">
+      ${i === 0 ? '<div class="reco-ruban">Accord parfait</div>' : ''}
+      <div class="reco-tete">
+        <div class="carte-couleur c-${esc(String(b.couleur || 'rouge').toLowerCase())}"></div>
+        <div class="reco-corps">
+          <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
+          <div class="carte-meta">${esc(b.region)} · ${esc(b.couleur)}${b.prix ? ` · ${b.prix} €` : ''} · ×${b.qty}</div>
+          ${m && MAT_LABELS[m.code] ? `<span class="cachet cachet-${m.code}">${MAT_LABELS[m.code]}</span>` : ''}
+        </div>
+        <div class="reco-anneau" title="Qualité de l'accord">
+          <svg viewBox="0 0 46 46" width="46" height="46">
+            <circle class="fond" cx="23" cy="23" r="18"/>
+            <circle class="jauge" cx="23" cy="23" r="18" stroke-dasharray="113" stroke-dashoffset="${113 - Math.round(113 * pct / 100)}"/>
+          </svg>
+          <span class="reco-pct">${pct}%</span>
+        </div>
+      </div>
+      <div class="reco-texte">${esc(argumentaire(c, profil))}</div>
+      <div class="reco-actions">
+        <button data-act="sortir">${ico('verre', 13)} Je la sors</button>
+        <button data-act="fiche">${ico('fiche', 13)} Voir la fiche</button>
+      </div>
+    </div>`;
+}
+function brancherActionsReco(zone) {
+  zone.querySelectorAll('.reco').forEach((el) => {
+    const sortir = el.querySelector('[data-act="sortir"]');
+    const fiche = el.querySelector('[data-act="fiche"]');
+    if (sortir) sortir.onclick = () => dialogueSortie(el.dataset.id);
+    if (fiche) fiche.onclick = () => ouvrirFiche(el.dataset.id);
+  });
+}
+
+/* Fin de cycle : l'orbe se condense pour laisser la scène aux bouteilles */
+function orbeAuRepos(compacte = true) {
+  orbe?.etatVers('repos');
+  statutOrbe(compacte ? 'Touchez l\'orbe pour autre chose' : STATUT_REPOS);
+  $('#orbe-scene').classList.toggle('compacte', compacte);
+}
+
+/* Une question dépasse l'accord mets-vins ? Le Sommelier+ (IA) prend la main. */
+const estQuestionLibre = (q) => q.length > 70 || /\?|€|euros?|personnes|budget|combien|comment|pourquoi|conserv|carafe|températur/i.test(q);
+
+async function escaladerIA(q) {
+  const zone = $('#resultats-sommelier');
+  orbe?.etatVers('reflexion');
+  statutOrbe('Le Sommelier+ réfléchit…');
+  zone.innerHTML = '<div class="reco-squelette"><span class="photo-shimmer"></span></div>';
+  try {
+    const rep = await sommelierPlus(store.get().settings.apiKey, q, store.get().bottles);
+    zone.innerHTML = `<div class="bulle-ia">${esc(rep)}</div>`;
+    vibrer('succes');
+    dire(rep);
+  } catch (e) { zone.innerHTML = ''; toast(e.message); }
+  orbeAuRepos();
+}
+
+async function lancerConseil(repas) {
+  repas = (repas || '').trim();
+  if (!repas) return toast('Décrivez votre repas d\'abord');
+  const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
+  if (!enCave.length) return toast('Votre cave est vide — ajoutez des bouteilles !');
+  pousserHisto(repas);
+  $('#orbe-transcript').textContent = repas;
+  const { apiKey } = store.get().settings;
+
+  // Question libre (budget, nombre de convives, conservation…) → IA directement
+  if (apiKey && estQuestionLibre(repas)) return escaladerIA(repas);
+
+  // Petite mise en scène : le conseil mérite un temps de cave
+  const zone = $('#resultats-sommelier');
+  orbe?.etatVers('reflexion');
+  if (!reduitMouvement()) {
+    statutOrbe('Le sommelier descend à la cave…');
+    zone.innerHTML = '<div class="reco-squelette"><span class="photo-shimmer"></span></div>'.repeat(2);
+    await attendre(700);
+    statutOrbe('Il remonte avec quelque chose…');
+    await attendre(500);
+  }
+
+  const { profil, choix } = recommander(repas, enCave, occasion);
+  if (!choix.length) {
+    if (apiKey) return escaladerIA(repas); // rien en local : l'IA cherche mieux
+    zone.innerHTML = `<div class="vide"><div class="gros">Rien d'idéal en cave…</div>Pour ${esc(profil.plat || 'ce plat')}, je chercherais un ${Object.entries(profil.cible).sort((a, z) => z[1] - a[1])[0][0]} ${profil.regions[0] ? 'de ' + profil.regions[0] : ''}. L'occasion d'un achat ?</div>`;
+    orbeAuRepos();
+    return;
+  }
+
+  zone.innerHTML = choix.map((c, i) => carteReco(c, i, profil)).join('');
+  brancherActionsReco(zone);
+  if (apiKey) {
+    zone.insertAdjacentHTML('beforeend',
+      `<button class="btn-discret" id="btn-approfondir" style="display:block;margin:10px auto 0">${ico('etincelles', 13)} Approfondir avec le Sommelier+</button>`);
+    $('#btn-approfondir').onclick = () => escaladerIA(`${repas} — détaille le service (température, carafage) et propose une alternative.`);
+  }
+  rendreHisto();
+  orbeAuRepos();
+  vibrer('succes');
+  dire(argumentaire(choix[0], profil));
+}
+
 function initSommelier() {
+  orbe = creerOrbe($('#orbe'));
+
   $('#occasions').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     occasion = s.dataset.occ;
     $('#occasions').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
   });
 
-  if (!voixDisponible) $('#btn-micro-repas').style.display = 'none';
-  $('#btn-micro-repas').onclick = () => {
-    $('#btn-micro-repas').classList.add('ecoute');
-    dicter({
-      onResult: (txt) => { $('#saisie-repas').value = txt; },
-      onEnd: () => $('#btn-micro-repas').classList.remove('ecoute'),
-      onError: (m) => toast(m),
+  // Tap sur l'orbe : on écoute. Re-tap : on arrête. Sans micro : on passe au texte.
+  $('#orbe').onclick = () => {
+    if (orbe.etat === 'reflexion') return;
+    if (orbe.etat === 'ecoute') { try { dicteeEnCours?.stop(); } catch { } return; }
+    if (!voixDisponible) { basculerEcrire(true); return; }
+    vibrer('tic');
+    $('#orbe-scene').classList.remove('compacte');
+    $('#orbe-transcript').textContent = '';
+    statutOrbe('Je vous écoute…');
+    orbe.ecouter();
+    let texteFinal = '';
+    dicteeEnCours = dicter({
+      onResult: (txt) => { texteFinal = txt; $('#orbe-transcript').textContent = txt; },
+      onEnd: () => {
+        dicteeEnCours = null;
+        if (texteFinal) lancerConseil(texteFinal);
+        else orbeAuRepos(false);
+      },
+      onError: (m) => { toast(m); orbeAuRepos(false); },
     });
   };
 
-  $('#btn-conseiller').onclick = () => {
-    const repas = $('#saisie-repas').value.trim();
-    if (!repas) return toast('Décrivez votre repas d\'abord');
-    const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
-    if (!enCave.length) return toast('Votre cave est vide — ajoutez des bouteilles !');
-    const { profil, choix } = recommander(repas, enCave, occasion);
-    if (!choix.length) {
-      $('#resultats-sommelier').innerHTML = `<div class="vide"><div class="gros">Rien d'idéal en cave…</div>Pour ${esc(profil.plat || 'ce plat')}, je chercherais un ${Object.entries(profil.cible).sort((a, z) => z[1] - a[1])[0][0]} ${profil.regions[0] ? 'de ' + profil.regions[0] : ''}. L'occasion d'un achat ?</div>`;
-      return;
-    }
-    $('#resultats-sommelier').innerHTML = choix.map((c, i) => `
-      <div class="reco ${i > 0 ? 'second' : ''}" data-id="${c.bottle.id}">
-        <div class="reco-rang">${i + 1}</div>
-        <div class="carte-nom">${esc(c.bottle.nom)} ${c.bottle.millesime ? `<span class="mil">${c.bottle.millesime}</span>` : ''}</div>
-        <div class="carte-meta">${esc(c.bottle.region)} · ${c.bottle.couleur}${c.bottle.prix ? ` · ${c.bottle.prix} €` : ''} · ×${c.bottle.qty}</div>
-        <div class="reco-texte">${esc(argumentaire(c, profil))}</div>
-        <div class="reco-actions">
-          <button data-act="sortir">🍷 Je la sors</button>
-          <button data-act="fiche">Voir la fiche</button>
-        </div>
-      </div>`).join('');
-    $('#resultats-sommelier').querySelectorAll('.reco').forEach((el) => {
-      el.querySelector('[data-act="sortir"]').onclick = () => dialogueSortie(el.dataset.id);
-      el.querySelector('[data-act="fiche"]').onclick = () => ouvrirFiche(el.dataset.id);
-    });
-    dire(argumentaire(choix[0], profil));
-  };
+  $('#lien-ecrire').onclick = () => basculerEcrire();
+  $('#btn-conseiller').onclick = () => lancerConseil($('#saisie-repas').value);
+  $('#saisie-repas').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); lancerConseil(e.target.value); }
+  });
 
   $('#btn-surprise').onclick = () => {
     const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
     if (!enCave.length) return toast('Votre cave est vide !');
     const b = surprise(enCave);
     const m = maturite(b);
+    $('#orbe-scene').classList.add('compacte');
     $('#resultats-sommelier').innerHTML = `
-      <div class="reco" data-id="${b.id}">
-        <div class="reco-rang">🎲</div>
-        <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
-        <div class="carte-meta">${esc(b.region)} · ${b.couleur}${b.prix ? ` · ${b.prix} €` : ''}</div>
-        <div class="reco-texte">Le hasard a du goût : ${m.code === 'urgent' ? 'celle-ci n\'attendra pas, c\'est le moment parfait' : m.code === 'apogee' ? 'elle est à son apogée, foncez' : 'une jolie découverte pour ce soir'}.</div>
-        <div class="reco-actions"><button data-act="sortir">🍷 Je la sors</button><button data-act="encore">🎲 Relancer</button></div>
+      <div class="reco premier" data-id="${b.id}">
+        <div class="reco-ruban">Le hasard a du goût</div>
+        <div class="reco-tete">
+          <div class="carte-couleur c-${esc(String(b.couleur || 'rouge').toLowerCase())}"></div>
+          <div class="reco-corps">
+            <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
+            <div class="carte-meta">${esc(b.region)} · ${esc(b.couleur)}${b.prix ? ` · ${b.prix} €` : ''}</div>
+            ${MAT_LABELS[m.code] ? `<span class="cachet cachet-${m.code}">${MAT_LABELS[m.code]}</span>` : ''}
+          </div>
+        </div>
+        <div class="reco-texte">${m.code === 'urgent' ? 'Celle-ci n\'attendra pas, c\'est le moment parfait.' : m.code === 'apogee' ? 'Elle est à son apogée, foncez.' : 'Une jolie découverte pour ce soir.'}</div>
+        <div class="reco-actions">
+          <button data-act="sortir">${ico('verre', 13)} Je la sors</button>
+          <button data-act="encore">${ico('de', 13)} Relancer</button>
+        </div>
       </div>`;
     const el = $('#resultats-sommelier .reco');
     el.querySelector('[data-act="sortir"]').onclick = () => dialogueSortie(b.id);
@@ -1155,27 +1320,12 @@ function initSommelier() {
   };
 }
 
-function rendreSommelierPlus() {
-  const { apiKey } = store.get().settings;
-  $('#sommelier-plus').innerHTML = apiKey ? `
-    <h3 class="sous-titre">Sommelier<em>+</em> — posez n'importe quelle question</h3>
-    <div class="champ-repas">
-      <textarea id="q-libre" rows="2" placeholder="Ex : que servir avec un couscous royal pour 8 personnes sans dépasser 25€ ?"></textarea>
-    </div>
-    <button class="btn-fantome" id="btn-q-libre">Demander au Sommelier+</button>
-    <div id="rep-libre"></div>` : '';
-  const btn = $('#btn-q-libre');
-  if (btn) btn.onclick = async () => {
-    const q = $('#q-libre').value.trim();
-    if (!q) return;
-    btn.textContent = 'Le sommelier descend à la cave…'; btn.disabled = true;
-    try {
-      const rep = await sommelierPlus(store.get().settings.apiKey, q, store.get().bottles);
-      $('#rep-libre').innerHTML = `<div class="bulle-ia">${esc(rep)}</div>`;
-      dire(rep);
-    } catch (e) { toast(e.message); }
-    btn.textContent = 'Demander au Sommelier+'; btn.disabled = false;
-  };
+function basculerEcrire(forcer) {
+  const bloc = $('#bloc-ecrire');
+  const ouvrir = forcer ?? bloc.hidden;
+  bloc.hidden = !ouvrir;
+  $('#lien-ecrire').textContent = ouvrir ? 'masquer le champ texte' : 'ou écrivez votre repas';
+  if (ouvrir) $('#saisie-repas').focus();
 }
 
 /* ═══ ALERTES ═══ */
@@ -1213,7 +1363,7 @@ function rendreAlertes() {
     html = '<div class="vide"><div class="gros">Tout va bien à la cave</div>Créez des veilles ci-dessous pour être prévenu quand un segment s\'épuise.</div>';
   }
   aFinir.forEach((b) => {
-    html += `<div class="alerte"><div>🥃</div><div style="flex:1">
+    html += `<div class="alerte"><div>${ico('flacon', 18)}</div><div style="flex:1">
       <div class="alerte-titre">À finir en priorité : ${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
       <div class="alerte-detail">Il ne reste que ${b.niveau} % de la bouteille — un spiritueux ouvert s'oxyde, finissez-la avant d'en ouvrir une autre.</div>
     </div></div>`;
@@ -1320,7 +1470,7 @@ function rendreStats() {
     <div class="stat-bloc"><h3 class="sous-titre">Pyramide des millésimes</h3>${jauges(parGroupe(vins, 'millesime').sort((a, z) => String(z[0]).localeCompare(String(a[0]))), true)}</div>
     ${spirits.length ? `<div class="stat-bloc"><h3 class="sous-titre">Spiritueux par type</h3>${jauges(parGroupe(spirits, 'type'))}</div>` : ''}
     <div class="stat-bloc"><h3 class="sous-titre">Dernières sorties</h3>
-      ${sorties.map((s) => `<div class="journal-item"><span>🍷 ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || '<p style="color:var(--creme-45);font-size:13px">Aucune sortie enregistrée.</p>'}
+      ${sorties.map((s) => `<div class="journal-item"><span>${ico('verre', 12)} ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || '<p style="color:var(--creme-45);font-size:13px">Aucune sortie enregistrée.</p>'}
     </div>`;
 
   $('#cellule-valeur-stats').onclick = () => {
@@ -1380,7 +1530,7 @@ function rendreProfil() {
   $('#contenu-profil').innerHTML = `
     <div class="profil-tete">
       <button class="profil-avatar-edit" id="p-avatar-btn" aria-label="Changer la photo">
-        ${av}<span class="profil-avatar-cam">📷</span>
+        ${av}<span class="profil-avatar-cam">${ico('photo', 13)}</span>
       </button>
       <input type="file" id="p-avatar-input" accept="image/*" hidden>
       <div class="profil-nom-aff">${esc(s.nom || 'Votre nom')}</div>
@@ -1412,7 +1562,7 @@ function rendreProfil() {
       </ul>
       ${premium
         ? `<button class="btn-fantome" id="p-plan-toggle">Revenir à l'offre gratuite</button>`
-        : `<button class="btn-or btn-large" id="p-plan-toggle">✨ Passer Premium</button>`}
+        : `<button class="btn-or btn-large" id="p-plan-toggle">${ico('etincelles', 15)} Passer Premium</button>`}
     </div>
 
     <div class="profil-bloc">
@@ -1442,7 +1592,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v18</p>
+      <p class="profil-version">Caveau · v19</p>
     </div>`;
 
   // — Identité —
@@ -1477,7 +1627,7 @@ function rendreProfil() {
   $('#p-valeur').onchange = (e) => store.majSettings({ valeurCachee: e.target.checked });
   $('#p-save-api').onclick = () => {
     store.majSettings({ apiKey: $('#p-api').value.trim() });
-    rendreSommelierPlus(); toast('Clé IA enregistrée');
+    toast('Clé IA enregistrée');
   };
   // — Données —
   $('#p-export').onclick = () => {

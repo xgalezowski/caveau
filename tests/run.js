@@ -65,6 +65,11 @@ check('hors budget pénalisé en semaine', !hb || ord > 0, `→ position ${ord}`
 const r4 = recommander('curry thaï', cave, 'weekend', 3, 2026);
 check('épicé : pas un bordeaux puissant en tête', r4.choix[0]?.bottle.id !== 'a', `→ ${r4.choix[0]?.bottle.nom}`);
 
+// Données importées (JSON externe) : couleur capitalisée ne doit pas éliminer la bouteille
+const caveImportee = [{ id: 'i', nom: 'Import Test', region: 'Bordeaux', couleur: 'Rouge', millesime: 2016, prix: 30, qty: 2, gardeDe: 2021, gardeA: 2036 }];
+const r5 = recommander('côte de bœuf', caveImportee, 'weekend', 3, 2026);
+check('couleur capitalisée acceptée', r5.choix.length === 1, `→ ${r5.choix.length} choix`);
+
 const s = surprise(cave, 2026, 0.5);
 check('surprise renvoie une bouteille', !!s && s.qty > 0);
 check('cave vide → null', surprise([], 2026) === null);
