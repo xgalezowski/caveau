@@ -23,6 +23,67 @@
   --nav-h: calc(64px + env(safe-area-inset-bottom, 0px));
 }
 
+/* ═══ Thème clair — « salon de dégustation » ═══
+   Parchemin chaud, encre lie-de-vin, or assombri pour rester lisible
+   (contraste ≥ 4.5:1). La voûte devient une lumière de fin d'après-midi. */
+html[data-theme="clair"] {
+  color-scheme: light;
+  --encre: #f2e9d7;
+  --surface: #fdf8ec;
+  --surface-2: #f7efdc;
+  --bordeaux: #722f37;
+  --bordeaux-vif: #93333f;
+  --or: #a07a14;
+  --or-clair: #8a6712;
+  --creme: #2c161c;
+  --creme-70: rgba(44, 22, 28, .74);
+  --creme-45: rgba(44, 22, 28, .54);
+  --trait: rgba(138, 103, 18, .30);
+  --vert: #3f7141;
+  --rouge-vif: #b23329;
+}
+html[data-theme="clair"] .voute {
+  background:
+    radial-gradient(120% 65% at 50% -12%, rgba(114, 47, 55, .14), transparent 60%),
+    radial-gradient(90% 50% at 50% 112%, rgba(160, 122, 20, .10), transparent 55%),
+    var(--encre);
+}
+html[data-theme="clair"] .voute::before { opacity: .035; }
+html[data-theme="clair"] .voute::after {
+  box-shadow: 0 0 0 26px rgba(138, 103, 18, .05), 0 0 80px rgba(114, 47, 55, .08) inset;
+}
+/* les boutons d'or gardent leur éclat d'origine (texte sombre dessus) */
+html[data-theme="clair"] .btn-or,
+html[data-theme="clair"] .btn-envoi {
+  background: linear-gradient(160deg, #e8cd6f, #c9a227 55%, #a3821c);
+}
+/* tout ce qui pose du texte crème sur fond bordeaux reste crème */
+html[data-theme="clair"] .seg.actif,
+html[data-theme="clair"] .pastille-sommelier,
+html[data-theme="clair"] .avatar-entete,
+html[data-theme="clair"] .orbe,
+html[data-theme="clair"] .feuille-fermer:active { color: #f3ead8; }
+/* surfaces translucides : ivoire dépoli au lieu de noir dépoli */
+html[data-theme="clair"] .nav { background: rgba(248, 241, 226, .74); }
+html[data-theme="clair"] .feuille { background: rgba(251, 245, 232, .93); }
+html[data-theme="clair"] .feuille-poignee { background: rgba(251, 245, 232, .95); }
+html[data-theme="clair"] .chip-inspi { background: rgba(255, 252, 244, .72); }
+html[data-theme="clair"] .carte-retour { background: rgba(252, 248, 236, .82); color: var(--or-clair); }
+html[data-theme="clair"] .reco-anneau .fond { stroke: rgba(44, 22, 28, .12); }
+html[data-theme="clair"] .cachet-jeune { background: rgba(44, 22, 28, .05); }
+html[data-theme="clair"] .bulle-corps { fill: rgba(252, 248, 236, .92); }
+html[data-theme="clair"] .bulle-nom { stroke: rgba(246, 238, 221, .92); }
+html[data-theme="clair"] .carte-cadre {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(114, 47, 55, .10), transparent 65%),
+    var(--encre);
+}
+html[data-theme="clair"] .toast { box-shadow: 0 8px 30px rgba(60, 35, 20, .25); }
+html[data-theme="clair"] .profil-plan-pastille { background: rgba(44, 22, 28, .05); }
+html[data-theme="clair"] .profil-plan-pastille.pre { background: linear-gradient(160deg, #e8cd6f, #c9a227); border-color: #c9a227; }
+html[data-theme="clair"] .ligne-toggle { border-bottom-color: rgba(44, 22, 28, .08); }
+html[data-theme="clair"] .avance { border-top-color: rgba(44, 22, 28, .08); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 

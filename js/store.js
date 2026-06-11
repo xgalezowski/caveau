@@ -6,7 +6,7 @@ const defaults = () => ({
   bottles: [],
   watches: [],          // { id, type: 'region'|'millesime'|'reference', valeur, seuil }
   settings: { apiKey: '', voixActive: true, prenom: '', valeurCachee: false,
-    nom: '', email: '', avatar: '', plan: 'gratuit' },
+    nom: '', email: '', avatar: '', plan: 'gratuit', theme: 'sombre' },
 });
 
 let state = charger();

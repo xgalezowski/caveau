@@ -1442,6 +1442,14 @@ function initAlertes() {
   };
 }
 
+/* ═══ Thème ═══ */
+function appliquerTheme(theme) {
+  document.documentElement.dataset.theme = theme === 'clair' ? 'clair' : 'sombre';
+  // la barre système (Android) suit le décor
+  document.querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', theme === 'clair' ? '#f2e9d7' : '#120a0d');
+}
+
 /* ═══ STATS ═══ */
 let vueStats = 'chiffres';
 let mappemonde = null; // instance de la carte, créée à la première ouverture
@@ -1607,6 +1615,10 @@ function rendreProfil() {
         <span>Masquer la valeur de ma cave</span>
         <input type="checkbox" id="p-valeur" ${s.valeurCachee ? 'checked' : ''}>
       </label>
+      <label class="ligne-toggle">
+        <span>Thème clair</span>
+        <input type="checkbox" id="p-theme" ${s.theme === 'clair' ? 'checked' : ''}>
+      </label>
       <details class="avance" ${s.apiKey ? '' : ''}>
         <summary>Avancé — clé IA</summary>
         <label class="aide-champ">Clé API IA — Gemini ou Claude (débloque photo, prix &amp; fiches web, Sommelier+). Stockée uniquement sur cet appareil.</label>
@@ -1624,7 +1636,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v22</p>
+      <p class="profil-version">Caveau · v23</p>
     </div>`;
 
   // — Identité —
@@ -1656,6 +1668,16 @@ function rendreProfil() {
   };
   // — Préférences —
   $('#p-voix').onchange = (e) => store.majSettings({ voixActive: e.target.checked });
+  $('#p-theme').onchange = (e) => {
+    const theme = e.target.checked ? 'clair' : 'sombre';
+    store.majSettings({ theme });
+    // fondu croisé entre les deux mondes ; on neutralise la chorégraphie
+    // directionnelle des écrans (data-sens) le temps de la bascule
+    document.documentElement.removeAttribute('data-sens');
+    if (document.startViewTransition) document.startViewTransition(() => appliquerTheme(theme));
+    else appliquerTheme(theme);
+    vibrer('tic');
+  };
   $('#p-valeur').onchange = (e) => store.majSettings({ valeurCachee: e.target.checked });
   $('#p-save-api').onclick = () => {
     store.majSettings({ apiKey: $('#p-api').value.trim() });
@@ -1696,6 +1718,7 @@ export function initUI() {
   $('#avatar-entete').onclick = () => montrerEcran('profil');
   $('#btn-retour-profil').onclick = () => montrerEcran(ecranAvantProfil);
   majAvatar();
+  appliquerTheme(store.get().settings.theme);
   // Haptique « tic » sur tout ce qui se tape : onglets, segments, puces, avatar.
   document.addEventListener('click', (e) => {
     if (e.target.closest('.nav-item, .seg, .puce, .avatar-entete')) vibrer('tic');
