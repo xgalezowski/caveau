@@ -6,20 +6,34 @@ const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.
 export const voixDisponible = !!SR;
 
 // Lance une dictée ; onResult(texte, final) appelé au fil de l'eau.
-export function dicter({ onResult, onEnd, onError }) {
+// Mode `continu` : on n'arrête PAS à la première pause — la fin de phrase
+// est détectée par un silence prolongé (silenceMs) après le dernier mot,
+// pour laisser à l'utilisateur le temps de finir sa pensée.
+export function dicter({ onResult, onEnd, onError, continu = false, silenceMs = 1800, dureeMax = 20000 }) {
   if (!SR) { onError?.('Reconnaissance vocale non disponible sur ce navigateur'); return null; }
   const rec = new SR();
   rec.lang = 'fr-FR';
   rec.interimResults = true;
-  rec.continuous = false;
+  rec.continuous = continu;
+
+  let minuteurSilence = null;
+  let minuteurMax = null;
+  const arreter = () => { try { rec.stop(); } catch { } };
+  if (continu) minuteurMax = setTimeout(arreter, dureeMax); // garde-fou
+
   rec.onresult = (e) => {
     let texte = '';
     let final = false;
     for (const res of e.results) { texte += res[0].transcript; if (res.isFinal) final = true; }
     onResult?.(texte.trim(), final);
+    if (continu) {
+      // chaque nouveau mot repousse la fin : on ne conclut qu'au vrai silence
+      clearTimeout(minuteurSilence);
+      minuteurSilence = setTimeout(arreter, silenceMs);
+    }
   };
   rec.onerror = (e) => onError?.(e.error === 'not-allowed' ? 'Micro refusé — autorise-le dans les réglages du navigateur' : `Erreur micro : ${e.error}`);
-  rec.onend = () => onEnd?.();
+  rec.onend = () => { clearTimeout(minuteurSilence); clearTimeout(minuteurMax); onEnd?.(); };
   rec.start();
   return rec;
 }

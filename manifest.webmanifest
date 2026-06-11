@@ -1,6 +1,6 @@
 {
-  "name": "Caveau — Parlez à votre cave",
-  "short_name": "Caveau",
+  "name": "Som' — Parlez à votre cave",
+  "short_name": "Som'",
   "description": "Votre cave à vin vous parle : inventaire à la voix, accords mets-vins, alertes et rachats malins.",
   "lang": "fr",
   "start_url": "./",

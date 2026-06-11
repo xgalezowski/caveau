@@ -1337,6 +1337,10 @@ function initSommelier() {
     orbe.ecouter();
     let texteFinal = '';
     dicteeEnCours = dicter({
+      // écoute continue : la fin de phrase n'est conclue qu'après un vrai
+      // silence — le sommelier ne coupe plus la parole
+      continu: true,
+      silenceMs: 1800,
       onResult: (txt) => {
         // chaque fragment reconnu fait réagir la matière (essentiel sur
         // Android, où l'amplitude micro n'est pas accessible pendant la dictée)
@@ -1710,7 +1714,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v27</p>
+      <p class="profil-version">Som' · v28</p>
     </div>`;
 
   // — Identité —
