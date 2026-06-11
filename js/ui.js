@@ -67,7 +67,7 @@ const vinsSeuls = (bottles) => bottles.filter((b) => b.categorie !== 'spiritueux
 const alea = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const PHRASES_AJOUT = [
   'Bouteille ajoutée à votre cave.',
-  'Une pensionnaire de plus au caveau !',
+  'Une pensionnaire de plus dans la cave !',
   'Très belle pioche. Je la couche précieusement.',
   'C\'est noté ! Votre cave prend de la valeur.',
   'Entrée en cave. Elle y sera très bien.',
@@ -77,7 +77,7 @@ const PHRASES_AJOUT = [
 ];
 const PHRASES_AJOUT_LOT = [
   (n) => `${n} bouteilles ajoutées à votre cave.`,
-  (n) => `Belle rentrée : ${n} flacons de plus au caveau !`,
+  (n) => `Belle rentrée : ${n} flacons de plus dans la cave !`,
   (n) => `${n} nouvelles pensionnaires. La cave se porte bien.`,
   (n) => `J'enregistre ${n} bouteilles. Quel arrivage !`,
 ];
@@ -1670,7 +1670,7 @@ function rendreProfil() {
     <div class="profil-bloc carte-offre ${premium ? 'pre' : ''}">
       <div class="offre-tete">
         <div>
-          <div class="offre-titre">${premium ? 'Caveau Premium' : 'Caveau — Gratuit'}</div>
+          <div class="offre-titre">${premium ? 'Som\' Premium' : 'Som\' — Gratuit'}</div>
           <div class="offre-sous">${premium ? 'Merci de votre soutien 🥂' : 'Passez Premium pour libérer toute la cave'}</div>
         </div>
         <div class="offre-prix">${premium ? '✓' : '4,99 €<small>/mois</small>'}</div>
@@ -1742,7 +1742,7 @@ function rendreProfil() {
     store.majSettings({ plan: premium ? 'gratuit' : 'premium' });
     if (!premium) vibrer('succes');
     rendreProfil();
-    toast(premium ? 'Retour à l’offre gratuite' : '✨ Bienvenue dans Caveau Premium !');
+    toast(premium ? 'Retour à l’offre gratuite' : '✨ Bienvenue dans Som’ Premium !');
   };
   // — Préférences —
   $('#p-voix').onchange = (e) => store.majSettings({ voixActive: e.target.checked });
@@ -1766,7 +1766,7 @@ function rendreProfil() {
     const blob = new Blob([store.exporter()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `caveau-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `som-${new Date().toISOString().slice(0, 10)}.json`;
     a.click(); URL.revokeObjectURL(a.href);
     toast('Sauvegarde téléchargée');
   };
