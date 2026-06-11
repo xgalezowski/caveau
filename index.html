@@ -46,7 +46,6 @@
 
   <!-- ═══ AJOUTER ═══ -->
   <section class="ecran" id="ecran-ajouter" hidden>
-    <h2 class="titre-ecran">Faire entrer<br><em>en cave</em></h2>
     <div class="segmente" id="categorie-ajout">
       <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> Vin</button>
       <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> Spiritueux</button>
@@ -125,28 +124,35 @@
 
   <!-- ═══ SOMMELIER ═══ -->
   <section class="ecran" id="ecran-sommelier" hidden>
-    <h2 class="titre-ecran">Qu'est-ce qu'on<br><em>mange ce soir ?</em></h2>
-
-    <!-- L'orbe : le « corps » du sommelier. Tap → dictée, le visuel réagit à la voix. -->
-    <div class="orbe-scene" id="orbe-scene">
-      <button class="orbe" id="orbe" data-etat="repos" aria-label="Parler au sommelier">
-        <canvas class="orbe-fluide" width="200" height="200"></canvas>
-        <svg class="orbe-icone" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-      </button>
-      <p class="orbe-statut" id="orbe-statut">Touchez l'orbe et dites votre repas</p>
-      <p class="orbe-transcript" id="orbe-transcript" aria-live="polite"></p>
+    <!-- Scène immersive : la simulation fluide occupe presque tout l'écran.
+         Tap sur la matière → dictée ; glisser → remous (interaction native). -->
+    <div class="scene-fluide" id="orbe-scene">
+      <div class="toile-fluide" id="orbe" data-etat="repos" role="button" aria-label="Parler au sommelier" tabindex="0">
+        <canvas class="fluide-canvas"></canvas>
+      </div>
+      <p class="fluide-statut" id="orbe-statut">Touchez la matière et dites votre repas</p>
+      <!-- la transcription apparaît en sous-titres, comme au cinéma -->
+      <div class="sous-titres" id="orbe-transcript" aria-live="polite"></div>
+      <div class="fluide-outils">
+        <div class="chips-inspi" id="chips-inspi"></div>
+        <div class="segmente segmente-verre" id="occasions">
+          <button class="seg" data-occ="semaine">Semaine</button>
+          <button class="seg actif" data-occ="weekend">Week-end</button>
+          <button class="seg" data-occ="grande">Grande occasion</button>
+        </div>
+        <div class="rangee-outils">
+          <button class="outil-pilule" id="lien-ecrire">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.12 2.12 0 0 1 3 3L8 19l-4 1Z"/></svg>
+            Écrire
+          </button>
+          <button class="outil-pilule" id="btn-surprise">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.15" fill="currentColor" stroke="none"/></svg>
+            Surprise
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="segmente" id="occasions">
-      <button class="seg" data-occ="semaine">Semaine</button>
-      <button class="seg actif" data-occ="weekend">Week-end</button>
-      <button class="seg" data-occ="grande">Grande occasion</button>
-    </div>
-
-    <!-- Inspirations dérivées du contenu réel de la cave : un tap = une reco -->
-    <div class="chips-inspi" id="chips-inspi"></div>
-
-    <button class="btn-discret lien-ecrire" id="lien-ecrire">ou écrivez votre repas</button>
     <div class="champ-repas" id="bloc-ecrire" hidden>
       <textarea id="saisie-repas" rows="2" placeholder="Ex : côte de bœuf grillée et cèpes…"></textarea>
       <button class="micro-mini btn-envoi" id="btn-conseiller" aria-label="Demander conseil">
@@ -154,18 +160,12 @@
       </button>
     </div>
 
-    <button class="btn-fantome" id="btn-surprise">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.15" fill="currentColor" stroke="none"/></svg>
-      Ce soir je bois quoi ?
-    </button>
-
     <div id="resultats-sommelier"></div>
     <div class="historique-sommelier" id="historique-sommelier"></div>
   </section>
 
   <!-- ═══ ALERTES ═══ -->
   <section class="ecran" id="ecran-alertes" hidden>
-    <h2 class="titre-ecran">Veilles &<br><em>rachats malins</em></h2>
     <div id="liste-alertes"></div>
     <h3 class="sous-titre">Mes veilles</h3>
     <div id="liste-veilles"></div>
@@ -183,7 +183,6 @@
 
   <!-- ═══ STATS ═══ -->
   <section class="ecran" id="ecran-stats" hidden>
-    <h2 class="titre-ecran">L'état de<br><em>la cave</em></h2>
     <div class="segmente" id="vue-stats">
       <button class="seg actif" data-vue="chiffres">Chiffres</button>
       <button class="seg" data-vue="carte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg> Carte</button>

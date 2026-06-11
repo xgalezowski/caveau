@@ -136,10 +136,11 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 }
 
 /* ─── En-tête ─── */
-.entete { position: relative; text-align: center; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 4px; }
+/* En-tête compact : la marque s'efface devant le contenu */
+.entete { position: relative; text-align: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 2px; }
 .avatar-entete {
-  position: absolute; top: calc(18px + env(safe-area-inset-top, 0px)); right: 16px;
-  width: 42px; height: 42px; border-radius: 50%; z-index: 2;
+  position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 16px;
+  width: 36px; height: 36px; border-radius: 50%; z-index: 2;
   background: linear-gradient(150deg, var(--bordeaux), var(--bordeaux-vif));
   background-size: cover; background-position: center;
   border: 1.5px solid var(--or); color: var(--creme);
@@ -152,15 +153,12 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 .avatar-entete:active { transform: scale(.92); }
 .marque {
   font-family: var(--serif); font-style: italic; font-weight: 600;
-  font-size: 42px; letter-spacing: .04em; color: var(--creme);
+  font-size: 24px; letter-spacing: .04em; color: var(--creme);
   text-shadow: 0 2px 30px rgba(201, 162, 39, .35);
   animation: lueur 4.5s ease-in-out infinite alternate;
 }
 .marque::first-letter { color: var(--or-clair); }
-.devise {
-  font-size: 11px; letter-spacing: .35em; text-transform: uppercase;
-  color: var(--creme-45); margin-top: 2px;
-}
+.devise { display: none; }
 @keyframes lueur {
   from { text-shadow: 0 2px 26px rgba(201, 162, 39, .25); }
   to   { text-shadow: 0 2px 40px rgba(201, 162, 39, .5); }
@@ -422,46 +420,84 @@ input[type="range"]::-webkit-slider-thumb {
 .plus-details summary::before { content: '▸ '; color: var(--or); }
 .plus-details[open] summary::before { content: '▾ '; }
 
-/* ═══ Sommelier — l'orbe fluide ═══
-   Simulation de métaballes (canvas, orbe-fluide.js). L'effet « goo » vient
-   du couple blur + contrast : le flou fond les gouttes entre elles, le
-   contraste re-seuille les bords — la matière paraît liquide. */
-.orbe-scene {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 2px 0 0;
-  transition: transform .5s cubic-bezier(.22, 1.18, .36, 1), margin .4s ease;
+/* ═══ Sommelier — scène fluide immersive ═══
+   La simulation Navier-Stokes (fluide-sim.js) occupe presque tout l'écran ;
+   statut, sous-titres et outils flottent en surimpression. */
+.scene-fluide {
+  position: relative;
+  height: calc(100dvh - var(--nav-h) - 88px);
+  min-height: 400px;
+  margin: -10px -16px 12px; /* pleine largeur : annule le padding de main */
+  overflow: hidden;
+  transition: height .55s cubic-bezier(.22, 1.12, .36, 1);
 }
-/* après une réponse, l'orbe se condense pour laisser la place aux recos */
-.orbe-scene.compacte { transform: scale(.62); margin: -34px 0 -40px; }
-.orbe {
-  position: relative; width: 200px; height: 200px; flex: none;
+/* après une réponse, la scène se condense pour laisser place aux bouteilles */
+.scene-fluide.compacte { height: 30dvh; min-height: 210px; }
+.scene-fluide.compacte .fluide-outils { opacity: 0; pointer-events: none; }
+.toile-fluide { position: absolute; inset: 0; cursor: pointer; -webkit-user-select: none; user-select: none; }
+.fluide-canvas { display: block; width: 100%; height: 100%; }
+.fluide-statut {
+  position: absolute; top: 10px; left: 0; right: 0; z-index: 2;
+  text-align: center; font-size: 12px; letter-spacing: .03em;
+  color: var(--creme-45); pointer-events: none;
+}
+/* sous-titres de cinéma : la transcription se pose sur la matière */
+.sous-titres {
+  position: absolute; left: 16px; right: 16px; bottom: 186px; z-index: 2;
+  text-align: center; pointer-events: none;
+  font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-size: 22px; line-height: 1.25; overflow-wrap: anywhere;
   color: var(--creme);
-  -webkit-user-select: none; user-select: none;
+  text-shadow: 0 1px 3px var(--encre), 0 0 14px var(--encre), 0 0 30px var(--encre);
 }
-.orbe-fluide {
-  display: block; width: 100%; height: 100%;
-  pointer-events: none;
-  /* halo d'ambiance sous la matière */
-  filter: drop-shadow(0 0 26px rgba(160, 61, 75, .45));
-  transition: filter .35s;
+.sous-titres:empty { display: none; }
+/* outils en surimpression : verre dépoli sur la matière */
+.fluide-outils {
+  position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: opacity .3s;
 }
-.orbe[data-etat="ecoute"] .orbe-fluide { filter: drop-shadow(0 0 30px rgba(201, 162, 39, .4)); }
-.orbe-icone {
-  position: absolute; left: 50%; top: 50%; translate: -50% -50%;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .8));
-  transition: opacity .25s;
-  opacity: .9;
+.fluide-outils .chips-inspi {
+  flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start;
+  margin: 0; padding-bottom: 2px; scrollbar-width: none;
 }
-.orbe[data-etat="ecoute"] .orbe-icone, .orbe[data-etat="reflexion"] .orbe-icone { opacity: 0; }
-.orbe:active .orbe-fluide { filter: drop-shadow(0 0 32px rgba(201, 162, 39, .55)) brightness(1.12); }
-.orbe-statut { margin-top: 14px; font-size: 13px; color: var(--creme-45); text-align: center; min-height: 18px; }
-.orbe-transcript {
-  font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 1.3;
-  color: var(--or-clair); text-align: center; margin: 6px 10px 0;
-  min-height: 0; overflow-wrap: anywhere;
+.fluide-outils .chips-inspi::-webkit-scrollbar { display: none; }
+.fluide-outils .chip-inspi { flex: none; backdrop-filter: blur(10px); }
+.segmente-verre {
+  margin: 0; background: rgba(18, 10, 13, .45);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
-.orbe-transcript:empty { display: none; }
+.rangee-outils { display: flex; gap: 8px; }
+.outil-pilule {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px; border-radius: 999px; font-size: 13px;
+  color: var(--creme-70); border: 1px solid var(--trait);
+  background: rgba(18, 10, 13, .45);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.outil-pilule:active { border-color: var(--or); color: var(--or-clair); }
+html[data-theme="clair"] .segmente-verre,
+html[data-theme="clair"] .outil-pilule { background: rgba(252, 246, 233, .55); }
+
+/* bulle d'onboarding : première visite d'un écran */
+.bulle-onboard {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(150deg, var(--surface-2), var(--surface) 70%);
+  border: 1px solid var(--or); border-radius: var(--rayon);
+  padding: 13px 14px; margin-bottom: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .35);
+  animation: entree .4s ease both;
+  position: relative; z-index: 4;
+}
+.bulle-onboard p { flex: 1; font-size: 13.5px; line-height: 1.45; color: var(--creme-70); }
+.bulle-onboard button {
+  flex: none; font-size: 12px; font-weight: 700; color: #221806;
+  background: linear-gradient(160deg, #e8cd6f, #c9a227);
+  border-radius: 999px; padding: 8px 14px;
+}
+.bulle-onboard.sortie { transition: opacity .3s, transform .3s; opacity: 0; transform: translateY(-8px); }
+/* sur la scène fluide, la bulle flotte en surimpression */
+.scene-fluide .bulle-onboard { position: absolute; top: 34px; left: 14px; right: 14px; margin: 0; }
 
 /* chips d'inspiration */
 .chips-inspi { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 4px 0 2px; }

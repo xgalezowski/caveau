@@ -115,6 +115,33 @@ function rendre(nom) {
   if (nom === 'sommelier') rendreSommelier();
   if (nom === 'profil') rendreProfil();
   majBadgeAlertes();
+  bulleOnboarding(nom);
+}
+
+/* ═══ Onboarding : une bulle par écran, à la première visite seulement.
+   Les titres descriptifs ont disparu — c'est elle qui présente les lieux. ═══ */
+const ONBOARDING = {
+  cave: 'Votre collection, rangée par région. Cherchez, filtrez, touchez une bouteille pour ouvrir sa fiche.',
+  ajouter: 'Faites entrer des bouteilles : dictez-les, photographiez les étiquettes ou remplissez une fiche.',
+  sommelier: 'Touchez la matière et dites votre repas — le sommelier choisit dans votre cave. Glissez le doigt pour jouer avec le vin.',
+  alertes: 'Vos veilles de stock et les urgences : soyez prévenu quand un vin doit être bu ou racheté.',
+  stats: 'La valeur et l\'équilibre de votre cave en chiffres — et la carte du monde de vos vins.',
+};
+function bulleOnboarding(nom) {
+  const cle = `caveau:onboard:${nom}`;
+  if (!ONBOARDING[nom] || localStorage.getItem(cle)) return;
+  localStorage.setItem(cle, '1');
+  const bulle = document.createElement('div');
+  bulle.className = 'bulle-onboard';
+  bulle.innerHTML = `<p>${ONBOARDING[nom]}</p><button>Compris</button>`;
+  // sur le Sommelier, la bulle flotte sur la scène fluide
+  const hote = nom === 'sommelier' ? $('#orbe-scene') : $(`#ecran-${nom}`);
+  hote.prepend(bulle);
+  bulle.querySelector('button').onclick = () => {
+    vibrer('tic');
+    bulle.classList.add('sortie');
+    setTimeout(() => bulle.remove(), 320);
+  };
 }
 
 /* ═══ Sélecteurs réutilisables ═══ */
@@ -1108,7 +1135,7 @@ async function enrichirEnCave(id) {
 /* ═══ SOMMELIER — vocal d'abord, autour de l'orbe ═══ */
 let orbe = null;
 let dicteeEnCours = null;
-const STATUT_REPOS = 'Touchez l\'orbe et dites votre repas';
+const STATUT_REPOS = 'Touchez la matière et dites votre repas';
 
 const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const statutOrbe = (txt) => { $('#orbe-statut').textContent = txt; };
@@ -1189,7 +1216,7 @@ function brancherActionsReco(zone) {
 /* Fin de cycle : l'orbe se condense pour laisser la scène aux bouteilles */
 function orbeAuRepos(compacte = true) {
   orbe?.etatVers('repos');
-  statutOrbe(compacte ? 'Touchez l\'orbe pour autre chose' : STATUT_REPOS);
+  statutOrbe(compacte ? 'Touchez la matière pour autre chose' : STATUT_REPOS);
   $('#orbe-scene').classList.toggle('compacte', compacte);
 }
 
@@ -1251,6 +1278,8 @@ async function lancerConseil(repas) {
   rendreHisto();
   orbeAuRepos();
   vibrer('succes');
+  // la scène est haute : on amène les bouteilles sous les yeux
+  setTimeout(() => zone.scrollIntoView({ behavior: reduitMouvement() ? 'auto' : 'smooth', block: 'start' }), 250);
   dire(argumentaire(choix[0], profil));
 }
 
@@ -1332,8 +1361,10 @@ function basculerEcrire(forcer) {
   const bloc = $('#bloc-ecrire');
   const ouvrir = forcer ?? bloc.hidden;
   bloc.hidden = !ouvrir;
-  $('#lien-ecrire').textContent = ouvrir ? 'masquer le champ texte' : 'ou écrivez votre repas';
-  if (ouvrir) $('#saisie-repas').focus();
+  if (ouvrir) {
+    bloc.scrollIntoView({ behavior: reduitMouvement() ? 'auto' : 'smooth', block: 'center' });
+    $('#saisie-repas').focus();
+  }
 }
 
 /* ═══ ALERTES ═══ */
@@ -1636,7 +1667,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v23</p>
+      <p class="profil-version">Caveau · v24</p>
     </div>`;
 
   // — Identité —
