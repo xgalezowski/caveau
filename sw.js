@@ -9,7 +9,14 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' force le réseau — sans ça, GitHub Pages (max-age=600)
+  // laisse le cache HTTP resservir d'anciens fichiers au nouveau SW, et
+  // l'app paraît « ne pas se mettre à jour » malgré les rechargements.
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {

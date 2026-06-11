@@ -27,7 +27,27 @@ window.addEventListener('beforeinstallprompt', (e) => {
   };
 });
 
-// PWA : cache offline
+// PWA : cache offline + mise à jour automatique.
+// Quand un nouveau SW prend la main (skipWaiting + claim), la page se
+// recharge une fois toute seule : plus besoin du « double rechargement ».
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW non enregistré', e));
+  navigator.serviceWorker.register('sw.js')
+    .then((reg) => {
+      // PWA installée : le processus peut vivre des jours — on revérifie
+      // les mises à jour à chaque retour au premier plan.
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) reg.update().catch(() => {});
+      });
+    })
+    .catch((e) => console.warn('SW non enregistré', e));
+
+  const avaitControleur = !!navigator.serviceWorker.controller;
+  let dejaRecharge = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // Première installation : claim() déclenche aussi cet événement,
+    // mais il n'y a rien de neuf à recharger.
+    if (!avaitControleur || dejaRecharge) return;
+    dejaRecharge = true;
+    location.reload();
+  });
 }
