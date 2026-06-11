@@ -130,11 +130,7 @@
     <!-- L'orbe : le « corps » du sommelier. Tap → dictée, le visuel réagit à la voix. -->
     <div class="orbe-scene" id="orbe-scene">
       <button class="orbe" id="orbe" data-etat="repos" aria-label="Parler au sommelier">
-        <span class="orbe-onde"></span>
-        <span class="orbe-onde onde-2"></span>
-        <span class="orbe-halo"></span>
-        <span class="orbe-coeur"></span>
-        <span class="orbe-verre"></span>
+        <canvas class="orbe-fluide" width="200" height="200"></canvas>
         <svg class="orbe-icone" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
       <p class="orbe-statut" id="orbe-statut">Touchez l'orbe et dites votre repas</p>

@@ -4,7 +4,7 @@
 import { store } from './store.js';
 import { parseTexte, parseLigne, parseTexteSpirit, parseLigneSpirit } from './parser.js';
 import { recommander, surprise, argumentaire, pctAccord } from './sommelier.js';
-import { creerOrbe } from './orbe.js';
+import { creerOrbe } from './orbe-fluide.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
 import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille } from './ai.js';
@@ -1256,6 +1256,7 @@ async function lancerConseil(repas) {
 
 function initSommelier() {
   orbe = creerOrbe($('#orbe'));
+  window.__orbe = orbe; // poignée de debug (états de la simulation fluide)
 
   $('#occasions').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     occasion = s.dataset.occ;
@@ -1616,7 +1617,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v20</p>
+      <p class="profil-version">Caveau · v21</p>
     </div>`;
 
   // — Identité —
