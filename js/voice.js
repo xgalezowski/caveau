@@ -37,17 +37,22 @@ if (typeof speechSynthesis !== 'undefined') {
 }
 
 // Fait parler le sommelier (si la voix est activée dans les réglages).
-// Repli : synthèse vocale du navigateur (robotique mais toujours dispo)
+// Repli : synthèse vocale du navigateur (robotique mais toujours dispo).
+// La promesse se résout à la FIN de la lecture — l'app peut animer pendant.
 function parlerNavigateur(texte) {
-  if (typeof speechSynthesis === 'undefined') return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(texte);
-  u.lang = 'fr-FR';
-  u.rate = 1.02;
-  u.pitch = 0.95;
-  const v = trouverVoixFr();
-  if (v) u.voice = v;
-  speechSynthesis.speak(u);
+  return new Promise((fin) => {
+    if (typeof speechSynthesis === 'undefined') return fin();
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(texte);
+    u.lang = 'fr-FR';
+    u.rate = 1.02;
+    u.pitch = 0.95;
+    const v = trouverVoixFr();
+    if (v) u.voice = v;
+    u.onend = fin;
+    u.onerror = fin;
+    speechSynthesis.speak(u);
+  });
 }
 
 let audioCourant = null;
@@ -62,15 +67,18 @@ export async function parler(texte, actif = true, synthGemini = null) {
       if (blob) {
         const url = URL.createObjectURL(blob);
         audioCourant = new Audio(url);
-        audioCourant.onended = () => URL.revokeObjectURL(url);
-        await audioCourant.play();
+        await new Promise((fin) => {
+          audioCourant.onended = () => { URL.revokeObjectURL(url); fin(); };
+          audioCourant.onerror = () => fin();
+          audioCourant.play().catch(() => fin());
+        });
         return;
       }
     } catch (e) {
       console.warn('Voix Gemini indisponible, repli navigateur', e);
     }
   }
-  parlerNavigateur(texte);
+  await parlerNavigateur(texte);
 }
 
 export function tairetout() {

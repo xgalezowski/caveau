@@ -11,10 +11,18 @@ import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents,
 import { vibrer, transitionEcran } from './fx.js';
 
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
-// sinon repli sur la synthèse du navigateur.
-function dire(texte) {
+// sinon repli sur la synthèse du navigateur. Pendant la lecture, l'encre
+// du Sommelier « articule » (état parle), puis se rendort.
+async function dire(texte) {
   const { voixActive, apiKey } = store.get().settings;
-  parler(texte, voixActive, apiKey ? (t) => synthVoixGemini(apiKey, t) : null);
+  if (!voixActive) return;
+  const anime = ecranActif === 'sommelier' && orbe;
+  if (anime) orbe.etatVers('parle');
+  try {
+    await parler(texte, true, apiKey ? (t) => synthVoixGemini(apiKey, t) : null);
+  } finally {
+    if (anime && orbe.etat === 'parle') orbe.etatVers('repos');
+  }
 }
 
 const $ = (sel) => document.querySelector(sel);
@@ -123,7 +131,7 @@ function rendre(nom) {
 const ONBOARDING = {
   cave: 'Votre collection, rangée par région. Cherchez, filtrez, touchez une bouteille pour ouvrir sa fiche.',
   ajouter: 'Faites entrer des bouteilles : dictez-les, photographiez les étiquettes ou remplissez une fiche.',
-  sommelier: 'Touchez la matière et dites votre repas — le sommelier choisit dans votre cave. Glissez le doigt pour jouer avec le vin.',
+  sommelier: 'Touchez le micro et dites votre repas — le sommelier choisit dans votre cave. Glissez le doigt sur l\'encre pour jouer avec le vin.',
   alertes: 'Vos veilles de stock et les urgences : soyez prévenu quand un vin doit être bu ou racheté.',
   stats: 'La valeur et l\'équilibre de votre cave en chiffres — et la carte du monde de vos vins.',
 };
@@ -1135,7 +1143,13 @@ async function enrichirEnCave(id) {
 /* ═══ SOMMELIER — vocal d'abord, autour de l'orbe ═══ */
 let orbe = null;
 let dicteeEnCours = null;
-const STATUT_REPOS = 'Touchez la matière et dites votre repas';
+const STATUT_REPOS = 'Touchez le micro et dites votre repas';
+
+let budgetMax = null; // plafond de prix pour la sélection (null = libre)
+function majBudget(v) {
+  budgetMax = v >= 210 ? null : v;
+  $('#budget-aff').textContent = budgetMax ? `≤ ${budgetMax} €` : 'libre';
+}
 
 const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const statutOrbe = (txt) => { $('#orbe-statut').textContent = txt; };
@@ -1204,7 +1218,7 @@ function carteReco(c, i, profil) {
           <span class="reco-pct">${pct}%</span>
         </div>
       </div>
-      <div class="reco-texte">${esc(argumentaire(c, profil))}</div>
+      <div class="reco-texte">${esc(argumentaire(c, profil, i))}</div>
       <div class="reco-actions">
         <button data-act="sortir">${ico('verre', 13)} Je la sors</button>
         <button data-act="fiche">${ico('fiche', 13)} Voir la fiche</button>
@@ -1223,7 +1237,7 @@ function brancherActionsReco(zone) {
 /* Fin de cycle : l'orbe se condense pour laisser la scène aux bouteilles */
 function orbeAuRepos(compacte = true) {
   orbe?.etatVers('repos');
-  statutOrbe(compacte ? 'Touchez la matière pour autre chose' : STATUT_REPOS);
+  statutOrbe(compacte ? 'Touchez le micro pour autre chose' : STATUT_REPOS);
   $('#orbe-scene').classList.toggle('compacte', compacte);
 }
 
@@ -1267,8 +1281,17 @@ async function lancerConseil(repas) {
     await attendre(500);
   }
 
-  const { profil, choix } = recommander(repas, enCave, occasion);
+  const { profil, choix } = recommander(repas, enCave, occasion, 3, undefined, budgetMax);
   if (!choix.length) {
+    if (budgetMax) {
+      // peut-être seulement une affaire de budget : on vérifie sans plafond
+      const sansPlafond = recommander(repas, enCave, occasion, 1);
+      if (sansPlafond.choix.length) {
+        zone.innerHTML = `<div class="vide"><div class="gros">Rien sous ${budgetMax} €…</div>Le ${esc(sansPlafond.choix[0].bottle.nom)} serait parfait — élargissez le budget d'un cran ?</div>`;
+        orbeAuRepos();
+        return;
+      }
+    }
     if (apiKey) return escaladerIA(repas); // rien en local : l'IA cherche mieux
     zone.innerHTML = `<div class="vide"><div class="gros">Rien d'idéal en cave…</div>Pour ${esc(profil.plat || 'ce plat')}, je chercherais un ${Object.entries(profil.cible).sort((a, z) => z[1] - a[1])[0][0]} ${profil.regions[0] ? 'de ' + profil.regions[0] : ''}. L'occasion d'un achat ?</div>`;
     orbeAuRepos();
@@ -1287,7 +1310,7 @@ async function lancerConseil(repas) {
   vibrer('succes');
   // la scène est haute : on amène les bouteilles sous les yeux
   setTimeout(() => zone.scrollIntoView({ behavior: reduitMouvement() ? 'auto' : 'smooth', block: 'start' }), 250);
-  dire(argumentaire(choix[0], profil));
+  dire(argumentaire(choix[0], profil, 0));
 }
 
 function initSommelier() {
@@ -1300,8 +1323,10 @@ function initSommelier() {
     $('#occasions').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
   });
 
-  // Tap sur l'orbe : on écoute. Re-tap : on arrête. Sans micro : on passe au texte.
-  $('#orbe').onclick = () => {
+  // LE bouton micro : on écoute. Re-tap : on arrête. Sans micro : le texte.
+  // (Le tap sur l'encre ne déclenche rien : la sim capture le toucher pour
+  // les remous et avale le click sur Android — le doigt sert à jouer.)
+  $('#btn-micro-sommelier').onclick = () => {
     if (!orbe || orbe.etat === 'reflexion') return;
     if (orbe.etat === 'ecoute') { try { dicteeEnCours?.stop(); } catch { } return; }
     if (!voixDisponible) { basculerEcrire(true); return; }
@@ -1327,6 +1352,16 @@ function initSommelier() {
       },
       onError: (m) => { toast(m); orbeAuRepos(false); },
     });
+  };
+
+  // Budget : à fond = libre, sinon plafond strict pour la sélection
+  const budgetSauve = parseInt(localStorage.getItem('caveau:budget')) || 210;
+  $('#budget-max').value = budgetSauve;
+  majBudget(budgetSauve);
+  $('#budget-max').oninput = (e) => {
+    const v = parseInt(e.target.value);
+    localStorage.setItem('caveau:budget', String(v));
+    majBudget(v);
   };
 
   $('#lien-ecrire').onclick = () => basculerEcrire();
@@ -1675,7 +1710,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v26</p>
+      <p class="profil-version">Caveau · v27</p>
     </div>`;
 
   // — Identité —

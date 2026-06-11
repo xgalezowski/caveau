@@ -2,7 +2,7 @@
 // bouteille de la cave (accord, maturité, prix vs occasion) et argumente.
 // Module pur, testable sous Node.
 
-import { corpsDe, maturite } from './wine-data.js';
+import { corpsDe, maturite, caractereDe } from './wine-data.js';
 
 function norm(s) {
   // NFD ne décompose pas les ligatures (œ, æ) : on les traite à part.
@@ -84,8 +84,13 @@ export function profilRepas(texte) {
 // occasion: 'semaine' | 'weekend' | 'grande'
 const BUDGET = { semaine: [0, 30], weekend: [10, 80], grande: [25, Infinity] };
 
-export function scoreBouteille(b, profil, occasion, annee) {
+// Régions qui « marquent le coup » pour une grande occasion
+const PRESTIGE = ['Bordeaux', 'Bourgogne', 'Champagne', 'Rhône Nord', 'Piémont', 'Toscane', 'Napa Valley', 'Ribera del Duero', 'Priorat'];
+
+export function scoreBouteille(b, profil, occasion, annee, budgetMax = null) {
   if (!b.qty || b.qty <= 0) return null;
+  // budget : filtre strict — au-delà, la bouteille n'entre pas en lice
+  if (budgetMax && b.prix != null && b.prix > budgetMax) return { score: -1, raisons: [] };
   let score = 0;
   const raisons = [];
 
@@ -125,6 +130,19 @@ export function scoreBouteille(b, profil, occasion, annee) {
     if (occasion === 'grande' && b.prix >= 50) raisons.push('une grande bouteille à la hauteur de l\'occasion');
   }
 
+  // 5 bis. Le caractère de l'occasion, au-delà du prix
+  const anneeRef = annee || new Date().getFullYear();
+  if (occasion === 'grande') {
+    if (PRESTIGE.includes(b.region)) { score += 3; raisons.push(`${b.region}, une signature qui marque le coup`); }
+    if (b.millesime && anneeRef - b.millesime >= 8 && m.code !== 'passe') {
+      score += 3; raisons.push(`un ${b.millesime} arrivé à pleine maturité`);
+    }
+  }
+  if (occasion === 'semaine') {
+    if (corps === 3) score -= 2; // un mardi soir appelle plus de souplesse
+    if (b.prix != null && b.prix > 80) score -= 4; // on épargne les trésors
+  }
+
   // 6. Abondance : on pioche d'abord là où il y a du stock
   if (b.qty >= 3) score += 1;
 
@@ -132,11 +150,11 @@ export function scoreBouteille(b, profil, occasion, annee) {
 }
 
 // Point d'entrée : repas (texte) + cave + occasion → top N argumenté
-export function recommander(texteRepas, bottles, occasion = 'weekend', n = 3, annee) {
+export function recommander(texteRepas, bottles, occasion = 'weekend', n = 3, annee, budgetMax = null) {
   const profil = profilRepas(texteRepas);
   const classement = bottles
     .map((b) => {
-      const r = scoreBouteille(b, profil, occasion, annee);
+      const r = scoreBouteille(b, profil, occasion, annee, budgetMax);
       return r && r.score >= 0 ? { bottle: b, ...r } : null;
     })
     .filter(Boolean)
@@ -159,16 +177,51 @@ export function surprise(bottles, annee, alea = Math.random()) {
   return pool[pool.length - 1].b;
 }
 
-// Phrase d'accroche du sommelier pour une recommandation.
-export function argumentaire(choix, profil) {
+// Argumentaire du sommelier, personnalisé par bouteille et par rang :
+// la première carte affirme l'évidence, la deuxième propose l'alternative,
+// la troisième tente le pari. Cépages et notes viennent de CARACTERES ;
+// un détail de service conclut. Aucune carte ne ressemble à sa voisine.
+export function argumentaire(choix, profil, rang = 0) {
   const b = choix.bottle;
-  const intro = profil.plat
-    ? `Pour ${profil.plat === 'apéritif' ? 'l\'' : 'votre '}${profil.plat}, `
-    : 'Pour ce repas, ';
   const nom = [b.nom, b.millesime].filter(Boolean).join(' ');
-  const corpsTxt = ['', 'tout en finesse', 'équilibré', 'puissant et structuré'][corpsDe(b.region, b.couleur)];
-  const raisons = choix.raisons.length ? ` — ${choix.raisons.slice(0, 2).join(', ')}` : '';
-  return `${intro}je vous conseille le ${nom} (${b.region}, ${b.couleur}), ${corpsTxt}${raisons}.`;
+  const plat = profil.plat ? `${profil.plat === 'apéritif' ? 'l\'' : 'votre '}${profil.plat}` : 'ce repas';
+  const carac = caractereDe(b.region, b.couleur);
+  const cepages = b.cepages || carac?.cep;
+
+  const accroches = [
+    `L'accord évident pour ${plat} : le ${nom}.`,
+    `En alternative, le ${nom} mérite qu'on hésite.`,
+    `Et pour sortir des sentiers battus, osez le ${nom}.`,
+  ];
+  let phrase = accroches[Math.min(rang, 2)];
+
+  // l'identité du vin : cépages puis arômes typiques
+  if (cepages) phrase += ` ${rang === 1 ? 'Son' : 'Le'} ${cepages} y parle ${carac ? `sur des notes de ${carac.notes}` : 'avec franchise'}`;
+  else if (carac) phrase += ` On y retrouve ${carac.notes}`;
+  if (cepages || carac) phrase += rang === 2 ? ' — exactement le grain de folie qu\'il faut ici.' : ', taillé pour la table de ce soir.';
+
+  // une raison du moteur — décalée selon le rang pour que deux cartes
+  // voisines ne répètent pas le même argument
+  if (choix.raisons.length) {
+    const raison = choix.raisons[rang % choix.raisons.length];
+    phrase += ` ${raison.charAt(0).toUpperCase()}${raison.slice(1)}.`;
+  }
+
+  // un conseil de service pour finir, selon la couleur, la maturité et le rang
+  const couleur = String(b.couleur || '').toLowerCase();
+  const m = choix.maturite;
+  if (couleur === 'rouge') {
+    phrase += m && m.code === 'jeune'
+      ? ' Carafez-le une bonne heure, il s\'ouvrira.'
+      : [' Ouvrez-le trente minutes avant, servez autour de 17 °C.',
+         ' Un passage en carafe ne lui fera que du bien.',
+         ' Servez-le légèrement rafraîchi, il n\'en sera que plus digeste.'][rang % 3];
+  } else if (couleur === 'effervescent') phrase += ' Bien frais, 8 °C, dans de vrais verres à vin.';
+  else if (couleur === 'blanc') phrase += ' Servez-le à 11 °C, pas glacé — il a des choses à dire.';
+  else if (couleur === 'rosé') phrase += ' Frais mais pas frigorifié : 10 °C, c\'est parfait.';
+  else if (couleur === 'moelleux') phrase += ' Frais, 9 °C, en petites gorgées heureuses.';
+
+  return phrase;
 }
 
 // Score brut → pourcentage d'accord affichable. Le maximum théorique est ~62

@@ -127,6 +127,53 @@ export function corpsDe(region, couleur) {
   return CORPS[`${region}|${couleur}`] ?? 2;
 }
 
+// Caractères de dégustation par région|couleur : cépages dominants et notes
+// typiques. Nourrit les argumentaires personnalisés du sommelier.
+export const CARACTERES = {
+  'Bordeaux|rouge': { cep: 'cabernet sauvignon et merlot', notes: 'cassis, cèdre et tabac blond' },
+  'Bordeaux|blanc': { cep: 'sauvignon et sémillon', notes: 'pamplemousse, buis et cire' },
+  'Bourgogne|rouge': { cep: 'pinot noir', notes: 'griotte, sous-bois et épices douces' },
+  'Bourgogne|blanc': { cep: 'chardonnay', notes: 'noisette, beurre frais et fleurs blanches' },
+  'Rhône Nord|rouge': { cep: 'syrah', notes: 'poivre noir, violette et olive' },
+  'Rhône Nord|blanc': { cep: 'viognier ou marsanne', notes: 'abricot, miel et aubépine' },
+  'Rhône Sud|rouge': { cep: 'grenache et syrah', notes: 'garrigue, fruits noirs et réglisse' },
+  'Loire|blanc': { cep: 'sauvignon ou chenin', notes: 'agrumes, pierre à fusil et fleurs' },
+  'Loire|rouge': { cep: 'cabernet franc', notes: 'framboise, poivron doux et craie' },
+  'Alsace|blanc': { cep: 'riesling ou gewurztraminer', notes: 'citron confit, litchi et minéralité' },
+  'Champagne|effervescent': { cep: 'chardonnay et pinots', notes: 'brioche, pomme verte et craie' },
+  'Beaujolais|rouge': { cep: 'gamay', notes: 'griotte, pivoine et fraîcheur croquante' },
+  'Languedoc|rouge': { cep: 'syrah, grenache et mourvèdre', notes: 'thym, cuir et fruits mûrs' },
+  'Provence|rosé': { cep: 'grenache et cinsault', notes: 'pêche blanche, agrumes et garrigue' },
+  'Provence|rouge': { cep: 'mourvèdre et grenache', notes: 'mûre, laurier et poivre' },
+  'Sud-Ouest|rouge': { cep: 'malbec et tannat', notes: 'mûre, violette et encre' },
+  'Jura|blanc': { cep: 'savagnin', notes: 'noix fraîche, curry doux et pomme' },
+  'Savoie|blanc': { cep: 'jacquère ou altesse', notes: 'pierre alpine, poire et fleurs blanches' },
+  'Corse|rouge': { cep: 'niellucciu et sciaccarellu', notes: 'maquis, cerise et poivre' },
+  'Piémont|rouge': { cep: 'nebbiolo', notes: 'rose fanée, goudron noble et griotte' },
+  'Toscane|rouge': { cep: 'sangiovese', notes: 'cerise amère, cuir et laurier' },
+  'Vénétie|rouge': { cep: 'corvina', notes: 'cerise confite, amande et épices' },
+  'Sicile|rouge': { cep: 'nero d\'avola ou nerello', notes: 'fruits noirs, lave et orange sanguine' },
+  'Rioja|rouge': { cep: 'tempranillo', notes: 'fruits rouges compotés, vanille et cuir' },
+  'Ribera del Duero|rouge': { cep: 'tempranillo', notes: 'mûre profonde, torréfaction et velours' },
+  'Priorat|rouge': { cep: 'grenache et carignan', notes: 'schiste chaud, kirsch et minéral' },
+  'Galice|blanc': { cep: 'albariño', notes: 'pêche, embruns et zeste' },
+  'Mendoza|rouge': { cep: 'malbec', notes: 'prune, violette et moka' },
+  'Vallée de Maipo|rouge': { cep: 'cabernet sauvignon', notes: 'cassis, eucalyptus et graphite' },
+  'Casablanca|blanc': { cep: 'sauvignon ou chardonnay', notes: 'agrumes vifs et brise marine' },
+  'Napa Valley|rouge': { cep: 'cabernet sauvignon', notes: 'cassis crémeux, cèdre et chocolat' },
+  'Oregon|rouge': { cep: 'pinot noir', notes: 'cerise rouge, terre humide et rose' },
+  'Moselle|blanc': { cep: 'riesling', notes: 'citron vert, ardoise et miel léger' },
+  'Rheingau|blanc': { cep: 'riesling', notes: 'pêche, épices et tension saline' },
+  'Kakhétie|rouge': { cep: 'saperavi', notes: 'mûre sauvage, grenade et tanins fougueux' },
+  'Santorin|blanc': { cep: 'assyrtiko', notes: 'citron, sel et pierre volcanique' },
+  'Naoussa|rouge': { cep: 'xinomavro', notes: 'tomate séchée, rose et tanins fins' },
+  'Douro|rouge': { cep: 'touriga nacional', notes: 'fruits noirs, schiste et fleurs' },
+  'Alentejo|rouge': { cep: 'aragonez et trincadeira', notes: 'fruits mûrs, herbes sèches et soleil' },
+};
+export function caractereDe(region, couleur) {
+  return CARACTERES[`${region}|${String(couleur || '').toLowerCase()}`] || null;
+}
+
 // Appellations connues → { r: région, c: couleur dominante, p: pays (si hors France) }
 // Sert au parsing texte/dictée et aux suggestions d'équivalents.
 export const APPELLATIONS = {

@@ -16,34 +16,46 @@ import { creerSimulation } from './fluide-sim.js';
 const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ANDROID = /Android/i.test(navigator.userAgent);
 
-/* Encres du caveau — assez lumineuses pour vivre sur la voûte sombre
-   (et franchir le seuil du bloom : les volutes rayonnent) */
+/* Encres du caveau. Le rendu est ADDITIF et le bloom amplifie : l'original
+   travaille à ≤ 0,15 par canal — au-delà, tout sature en blanc laiteux. */
 const PALETTE = [
-  { r: 0.34, g: 0.05, b: 0.10 },  // bordeaux profond
-  { r: 0.50, g: 0.08, b: 0.15 },  // bordeaux vif
-  { r: 0.54, g: 0.38, b: 0.08 },  // or patiné
-  { r: 0.40, g: 0.11, b: 0.19 },  // lie-de-vin
+  { r: 0.105, g: 0.016, b: 0.032 }, // bordeaux profond
+  { r: 0.15, g: 0.025, b: 0.046 },  // bordeaux vif
+  { r: 0.16, g: 0.115, b: 0.026 },  // or patiné
+  { r: 0.125, g: 0.035, b: 0.06 },  // lie-de-vin
 ];
 
 export function creerOrbe(el) {
-  const canvas = el.querySelector('canvas');
-  const sim = creerSimulation(canvas, {
-    TRANSPARENT: true,
-    PALETTE,
-    DENSITY_DISSIPATION: 1.25,  // l'encre s'estompe doucement
-    VELOCITY_DISSIPATION: 0.5,
-    CURL: 38,                   // tourbillons vivants
-    SPLAT_RADIUS: 0.26,
-    SPLAT_FORCE: 5400,
-    BLOOM: true,
-    SUNRAYS: false,
-    COLOR_UPDATE_SPEED: 6,
-    PAUSED: reduitMouvement(),  // mouvement réduit : encre figée du départ
-    // debug : les captures d'écran headless exigent un tampon préservé
-    PRESERVE: localStorage.getItem('caveau:debug-fluide') === '1',
-  });
+  let canvas = el.querySelector('canvas');
+  let sim = null;
+  let contextePerdu = false;
 
-  window.__sim = sim; // poignée de debug
+  function naitre() {
+    sim = creerSimulation(canvas, {
+      TRANSPARENT: true,
+      PALETTE,
+      DENSITY_DISSIPATION: 1.25,  // l'encre s'estompe doucement
+      VELOCITY_DISSIPATION: 0.5,
+      CURL: 38,                   // tourbillons vivants
+      SPLAT_RADIUS: 0.26,
+      SPLAT_FORCE: 5400,
+      BLOOM: true,
+      BLOOM_INTENSITY: 0.6,  // au-delà, les cœurs d'encre virent au blanc
+      SUNRAYS: false,
+      COLOR_UPDATE_SPEED: 6,
+      PAUSED: reduitMouvement(),  // mouvement réduit : encre figée du départ
+      // debug : les captures d'écran headless exigent un tampon préservé
+      PRESERVE: localStorage.getItem('caveau:debug-fluide') === '1',
+    });
+    window.__sim = sim; // poignée de debug
+    // Android peut sacrifier le contexte WebGL d'un onglet caché : on le
+    // note, et le prochain réveil fera renaître la simulation sur un canvas neuf
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      contextePerdu = true;
+    }, { once: true });
+  }
+  naitre();
 
   let etatCourant = 'repos';
   let audioCtx = null, flux = null, analyseur = null, donneesAudio = null;
@@ -66,14 +78,14 @@ export function creerOrbe(el) {
   }
 
   function rafaleVoix(force) {
-    const n = 2 + Math.round(force * 2);
+    const n = 3 + Math.round(force * 3);
     for (let i = 0; i < n; i++) {
       const a = alea(0, Math.PI * 2);
-      const v = 260 + force * 620;
+      const v = 400 + force * 950;
       eclat(
-        0.5 + Math.cos(a) * 0.06, 0.52 + Math.sin(a) * 0.06,
+        0.5 + Math.cos(a) * 0.07, 0.52 + Math.sin(a) * 0.07,
         Math.cos(a) * v, Math.sin(a) * v,
-        1.15 + force * 0.9
+        1.5 + force * 1.1
       );
     }
   }
@@ -142,16 +154,36 @@ export function creerOrbe(el) {
       if (nom === 'reflexion') angleVortex = 0;
     },
 
-    /* Éclaboussure de bienvenue : la matière salue l'arrivée sur l'écran. */
+    /* Éclaboussure de bienvenue, en trois vagues : la première peut se
+       perdre dans le redimensionnement ou la transition d'écran, les
+       suivantes garantissent qu'il y a toujours de l'encre à l'arrivée. */
     reveiller() {
-      sim.config.DORMIR = false;
-      sim.multipleSplats(5);
+      if (contextePerdu) {
+        // contexte WebGL sacrifié par le navigateur : canvas neuf, sim neuve
+        sim.config.DORMIR = true; // l'ancienne boucle s'endort pour de bon
+        const neuf = canvas.cloneNode(false);
+        canvas.replaceWith(neuf);
+        canvas = neuf;
+        contextePerdu = false;
+        naitre();
+      }
+      // éclats maison plutôt que multipleSplats (qui multiplie ×10 → cœurs
+      // blancs) : mêmes encres que le reste, cœurs colorés
+      const vague = (n) => {
+        sim.config.DORMIR = false;
+        for (let i = 0; i < n; i++) {
+          eclat(alea(0.2, 0.8), alea(0.25, 0.75), alea(-520, 520), alea(-520, 520), 1.8);
+        }
+      };
+      vague(4);
+      setTimeout(() => vague(3), 380);
+      setTimeout(() => { sim.config.DORMIR = false; goutteDouce(); goutteDouce(); }, 850);
     },
 
     /* La reconnaissance vient de transcrire : la matière encaisse l'éclat. */
     impulsionVoix(force = 0.5) {
-      boostVoix = Math.min(1, boostVoix + 0.3 + force * 0.5);
-      if (!sim.config.DORMIR) rafaleVoix(0.45 + force * 0.55);
+      boostVoix = Math.min(1, boostVoix + 0.45 + force * 0.55);
+      if (!sim.config.DORMIR) rafaleVoix(0.6 + force * 0.4);
     },
 
     async ecouter() {

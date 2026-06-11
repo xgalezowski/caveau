@@ -1,6 +1,6 @@
 // Harnais de vérification des modules purs : node tests/run.js
 import { parseLigne, parseTexte } from '../js/parser.js';
-import { recommander, surprise, profilRepas } from '../js/sommelier.js';
+import { recommander, surprise, profilRepas, argumentaire } from '../js/sommelier.js';
 import { maturite, gardeParDefaut } from '../js/wine-data.js';
 
 let ok = 0, ko = 0;
@@ -69,6 +69,22 @@ check('épicé : pas un bordeaux puissant en tête', r4.choix[0]?.bottle.id !== 
 const caveImportee = [{ id: 'i', nom: 'Import Test', region: 'Bordeaux', couleur: 'Rouge', millesime: 2016, prix: 30, qty: 2, gardeDe: 2021, gardeA: 2036 }];
 const r5 = recommander('côte de bœuf', caveImportee, 'weekend', 3, 2026);
 check('couleur capitalisée acceptée', r5.choix.length === 1, `→ ${r5.choix.length} choix`);
+
+// Budget maximum : filtre strict
+const r6 = recommander('entrecôte', cave, 'weekend', 3, 2026, 40);
+check('budget 40 € : pas de bouteille au-dessus', r6.choix.every((c) => (c.bottle.prix ?? 0) <= 40), `→ ${r6.choix.map((c) => c.bottle.prix)}`);
+
+// Grande occasion : le grand cru mûr remonte malgré son prix
+const r7 = recommander('côte de bœuf', cave, 'grande', 3, 2026);
+const posGrand = r7.choix.findIndex((c) => c.bottle.id === 'd');
+check('grande occasion : le grand cru en lice', posGrand >= 0 && posGrand <= 1, `→ position ${posGrand}`);
+
+// Argumentaires : personnalisés et différents par rang
+const a0 = argumentaire(r1.choix[0], r1.profil, 0);
+const a1 = argumentaire(r1.choix[0], r1.profil, 1);
+check('argumentaire rang 0 ≠ rang 1', a0 !== a1);
+check('argumentaire cite les cépages', /cabernet|merlot|syrah|pinot/i.test(a0), `→ ${a0.slice(0, 80)}…`);
+check('argumentaire conseille le service', /carafez|servez|°C/i.test(a0));
 
 const s = surprise(cave, 2026, 0.5);
 check('surprise renvoie une bouteille', !!s && s.qty > 0);

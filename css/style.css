@@ -467,6 +467,42 @@ input[type="range"]::-webkit-slider-thumb {
   margin: 0; background: rgba(18, 10, 13, .45);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
+/* LE bouton micro : flotte au-dessus des outils, pulse en écoute */
+.micro-fluide {
+  align-self: center;
+  width: 64px; height: 64px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 28%, var(--bordeaux-vif), var(--bordeaux) 72%);
+  border: 1.5px solid var(--or); color: #f3ead8;
+  box-shadow: 0 10px 30px rgba(114, 47, 55, .55), 0 0 0 0 rgba(201, 162, 39, .4);
+  margin-bottom: 2px;
+  transition: transform .15s;
+}
+.micro-fluide:active { transform: scale(.92); }
+.toile-fluide[data-etat="ecoute"] ~ .fluide-outils .micro-fluide,
+.scene-fluide:has(.toile-fluide[data-etat="ecoute"]) .micro-fluide {
+  animation: micro-pulse 1.6s ease-out infinite;
+  border-color: var(--or-clair);
+}
+@keyframes micro-pulse {
+  0% { box-shadow: 0 10px 30px rgba(114, 47, 55, .55), 0 0 0 0 rgba(201, 162, 39, .45); }
+  100% { box-shadow: 0 10px 30px rgba(114, 47, 55, .55), 0 0 0 26px rgba(201, 162, 39, 0); }
+}
+
+/* slider budget : ligne de verre discrète */
+.budget-fluide {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; border-radius: 999px;
+  border: 1px solid var(--trait);
+  background: rgba(18, 10, 13, .45);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  font-size: 12px; color: var(--creme-45);
+}
+.budget-fluide b { min-width: 52px; text-align: right; color: var(--or-clair); font-size: 13px; }
+.budget-fluide input[type="range"] { flex: 1; height: 5px; }
+.budget-fluide input[type="range"]::-webkit-slider-thumb { width: 18px; height: 18px; }
+html[data-theme="clair"] .budget-fluide { background: rgba(252, 246, 233, .55); }
+
 .rangee-outils { display: flex; gap: 8px; }
 .outil-pilule {
   flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
