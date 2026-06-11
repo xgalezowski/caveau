@@ -994,8 +994,10 @@ let colorUpdateTimer = 0.0;
 update();
 
 function update () {
+    requestAnimationFrame(update); // replanifié D'ABORD : la boucle survit à toute exception
     const dt = calcDeltaTime();
-    if (!config.DORMIR) {
+    if (config.DORMIR) return;
+    try {
         if (resizeCanvas())
             initFramebuffers();
         updateColors(dt);
@@ -1003,8 +1005,9 @@ function update () {
         if (!config.PAUSED)
             step(dt);
         render(null);
+    } catch (e) {
+        if (!update.signale) { update.signale = true; console.warn('Simulation fluide en erreur :', e); }
     }
-    requestAnimationFrame(update);
 }
 
 function calcDeltaTime () {

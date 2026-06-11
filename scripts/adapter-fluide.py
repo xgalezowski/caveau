@@ -80,8 +80,10 @@ src = src.replace(
     requestAnimationFrame(update);
 }""",
     """function update () {
+    requestAnimationFrame(update); // replanifié D'ABORD : la boucle survit à toute exception
     const dt = calcDeltaTime();
-    if (!config.DORMIR) {
+    if (config.DORMIR) return;
+    try {
         if (resizeCanvas())
             initFramebuffers();
         updateColors(dt);
@@ -89,9 +91,41 @@ src = src.replace(
         if (!config.PAUSED)
             step(dt);
         render(null);
+    } catch (e) {
+        if (!update.signale) { update.signale = true; console.warn('Simulation fluide en erreur :', e); }
     }
-    requestAnimationFrame(update);
 }""",
+    1,
+)
+
+# 8 bis. VRAIE transparence : la démo d'origine peint un DAMIER en mode
+# TRANSPARENT (pour matérialiser l'alpha) — on efface en transparent à la
+# place, et on garde le blending premultiplié pour composer sur la page.
+src = src.replace(
+    """    if (target == null || !config.TRANSPARENT) {
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.enable(gl.BLEND);
+    }
+    else {
+        gl.disable(gl.BLEND);
+    }
+
+    if (!config.TRANSPARENT)
+        drawColor(target, normalizeColor(config.BACK_COLOR));
+    if (target == null && config.TRANSPARENT)
+        drawCheckerboard(target);
+    drawDisplay(target);""",
+    """    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.enable(gl.BLEND);
+
+    if (!config.TRANSPARENT)
+        drawColor(target, normalizeColor(config.BACK_COLOR));
+    else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target == null ? null : target.fbo);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    drawDisplay(target);""",
     1,
 )
 

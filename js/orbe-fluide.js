@@ -16,12 +16,13 @@ import { creerSimulation } from './fluide-sim.js';
 const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ANDROID = /Android/i.test(navigator.userAgent);
 
-/* Encres du caveau — la sim additionne la teinture, on reste sobre */
+/* Encres du caveau — assez lumineuses pour vivre sur la voûte sombre
+   (et franchir le seuil du bloom : les volutes rayonnent) */
 const PALETTE = [
-  { r: 0.18, g: 0.02, b: 0.05 },  // bordeaux profond
-  { r: 0.30, g: 0.045, b: 0.09 }, // bordeaux vif
-  { r: 0.34, g: 0.235, b: 0.045 }, // or patiné
-  { r: 0.23, g: 0.06, b: 0.11 },  // lie-de-vin
+  { r: 0.34, g: 0.05, b: 0.10 },  // bordeaux profond
+  { r: 0.50, g: 0.08, b: 0.15 },  // bordeaux vif
+  { r: 0.54, g: 0.38, b: 0.08 },  // or patiné
+  { r: 0.40, g: 0.11, b: 0.19 },  // lie-de-vin
 ];
 
 export function creerOrbe(el) {
@@ -139,6 +140,12 @@ export function creerOrbe(el) {
       boostVoix = 0;
       if (nom !== 'ecoute') couperMicro();
       if (nom === 'reflexion') angleVortex = 0;
+    },
+
+    /* Éclaboussure de bienvenue : la matière salue l'arrivée sur l'écran. */
+    reveiller() {
+      sim.config.DORMIR = false;
+      sim.multipleSplats(5);
     },
 
     /* La reconnaissance vient de transcrire : la matière encaisse l'éclat. */

@@ -1156,6 +1156,13 @@ const INSPIRATIONS = {
   moelleux: ['Foie gras', 'Tarte aux fruits'],
 };
 function rendreSommelier() {
+  // naissance paresseuse de la simulation : l'écran est maintenant visible,
+  // le canvas a sa vraie taille — l'init WebGL part sur des bases saines
+  if (!orbe) {
+    orbe = creerOrbe($('#orbe'));
+    window.__orbe = orbe; // poignée de debug
+  }
+  orbe.reveiller(); // éclaboussure de bienvenue à chaque visite
   const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
   const couleurs = [...new Set(enCave.map((b) => String(b.couleur || '').toLowerCase()))];
   const plats = [...new Set(couleurs.flatMap((c) => INSPIRATIONS[c] || []))].slice(0, 6);
@@ -1284,8 +1291,9 @@ async function lancerConseil(repas) {
 }
 
 function initSommelier() {
-  orbe = creerOrbe($('#orbe'));
-  window.__orbe = orbe; // poignée de debug (états de la simulation fluide)
+  // La simulation n'est PAS créée ici : l'écran est encore caché, donc le
+  // canvas a une taille nulle (famille entière de bugs d'init WebGL).
+  // Elle naît à la première ouverture de l'écran — voir rendreSommelier().
 
   $('#occasions').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     occasion = s.dataset.occ;
@@ -1294,7 +1302,7 @@ function initSommelier() {
 
   // Tap sur l'orbe : on écoute. Re-tap : on arrête. Sans micro : on passe au texte.
   $('#orbe').onclick = () => {
-    if (orbe.etat === 'reflexion') return;
+    if (!orbe || orbe.etat === 'reflexion') return;
     if (orbe.etat === 'ecoute') { try { dicteeEnCours?.stop(); } catch { } return; }
     if (!voixDisponible) { basculerEcrire(true); return; }
     vibrer('tic');
@@ -1667,7 +1675,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v25</p>
+      <p class="profil-version">Caveau · v26</p>
     </div>`;
 
   // — Identité —
