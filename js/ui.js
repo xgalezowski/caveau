@@ -1435,7 +1435,31 @@ function initAlertes() {
 }
 
 /* ═══ STATS ═══ */
+let vueStats = 'chiffres';
+let mappemonde = null; // instance de la carte, créée à la première ouverture
+
+async function rendreCarte() {
+  $('#contenu-stats').hidden = true;
+  $('#contenu-carte').hidden = false;
+  if (!mappemonde) {
+    // import paresseux : le fond de carte (~115 Ko) n'est chargé qu'ici
+    const { creerCarte } = await import('./carte.js');
+    mappemonde = creerCarte($('#contenu-carte'), {
+      surFiche: (id) => ouvrirFiche(id),
+      surCave: (region) => {
+        $('#recherche').value = region;
+        catCave = 'vin';
+        montrerEcran('cave');
+      },
+    });
+  }
+  mappemonde.rendre(vinsSeuls(store.get().bottles).filter((b) => b.qty > 0));
+}
+
 function rendreStats() {
+  if (vueStats === 'carte') { rendreCarte(); return; }
+  $('#contenu-carte').hidden = true;
+  $('#contenu-stats').hidden = false;
   const { bottles, settings } = store.get();
   const enCave = bottles.filter((b) => b.qty > 0);
   const vins = enCave.filter((b) => b.categorie !== 'spiritueux');
@@ -1592,7 +1616,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Caveau · v19</p>
+      <p class="profil-version">Caveau · v20</p>
     </div>`;
 
   // — Identité —
@@ -1680,6 +1704,11 @@ export function initUI() {
   initAjouter();
   initSommelier();
   initAlertes();
+  $('#vue-stats').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
+    vueStats = s.dataset.vue;
+    $('#vue-stats').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
+    rendreStats();
+  });
 
   const { bottles } = store.get();
   montrerEcran(bottles.length ? 'cave' : 'ajouter');
