@@ -217,6 +217,7 @@ export default {
   'somm.ecrire': 'Escribir',
   'somm.surprise': 'Sorpresa',
   'somm.placeholderRepas': 'Ej: asado con mollejas o unas empanadas…',
+  'somm.incompris': 'No entendí tu comida. ¿Podrías repetir?',
 
   // ── Sommelier inspirations
   'somm.inspi.boeuf': 'Bife de chorizo',

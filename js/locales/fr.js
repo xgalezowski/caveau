@@ -217,6 +217,7 @@ export default {
   'somm.ecrire': 'Écrire',
   'somm.surprise': 'Surprise',
   'somm.placeholderRepas': 'Ex : côte de bœuf grillée et cèpes…',
+  'somm.incompris': 'Je n\'ai pas compris votre repas. Pouvez-vous répéter ?',
 
   // ── Sommelier inspirations (dish names)
   'somm.inspi.boeuf': 'Côte de bœuf',

@@ -1310,6 +1310,16 @@ async function lancerConseil(repas) {
 
   // Calcul du résultat AVANT l'animation pour pré-chauffer le TTS pendant l'attente
   const { profil, choix } = recommander(repas, enCave, occasion, 3, undefined, budgetMax);
+
+  if (!profil.plat) {
+    if (apiKey) return escaladerIA(repas);
+    
+    zone.innerHTML = `<div class="vide"><div class="gros">${t('somm.incompris')}</div></div>`;
+    orbeAuRepos();
+    dire(t('somm.incompris'));
+    return;
+  }
+
   if (!choix.length) {
     if (budgetMax) {
       const sansPlafond = recommander(repas, enCave, occasion, 1);

@@ -214,9 +214,10 @@ export default {
   'somm.caveVide': 'Your cellar is empty — add some bottles!',
   'somm.ecrireRepas': 'Choose a dish or type your meal',
   'somm.budget': 'Budget',
-  'somm.ecrire': 'Type',
+  'somm.ecrire': 'Write',
   'somm.surprise': 'Surprise',
-  'somm.placeholderRepas': 'Ex: grilled ribeye and porcini mushrooms…',
+  'somm.placeholderRepas': 'Ex: grilled rib steak and porcini mushrooms…',
+  'somm.incompris': 'I didn\'t understand your meal. Could you repeat it?',
 
   // ── Sommelier inspirations
   'somm.inspi.boeuf': 'Ribeye steak',
