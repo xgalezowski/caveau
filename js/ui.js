@@ -1155,6 +1155,15 @@ const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').mat
 const statutOrbe = (txt) => { $('#orbe-statut').textContent = txt; };
 
 /* Historique des 3 dernières demandes, rappelables d'un tap */
+/* Sous-titres streamés : on écrit, puis on colle le défilement en bas —
+   seules les deux dernières lignes restent visibles, comme au cinéma
+   (l'utilisateur peut remonter au doigt pour relire). */
+function majTranscript(txt) {
+  const el = $('#orbe-transcript');
+  el.textContent = txt;
+  el.scrollTop = el.scrollHeight;
+}
+
 const HISTO_CLE = 'caveau:repas-recents';
 const lireHisto = () => { try { return JSON.parse(localStorage.getItem(HISTO_CLE)) || []; } catch { return []; } };
 function pousserHisto(q) {
@@ -1227,10 +1236,13 @@ function carteReco(c, i, profil) {
 }
 function brancherActionsReco(zone) {
   zone.querySelectorAll('.reco').forEach((el) => {
+    // toute la carte ouvre la fiche ; les boutons gardent leurs actions
+    el.onclick = () => ouvrirFiche(el.dataset.id);
+    el.style.cursor = 'pointer';
     const sortir = el.querySelector('[data-act="sortir"]');
     const fiche = el.querySelector('[data-act="fiche"]');
-    if (sortir) sortir.onclick = () => dialogueSortie(el.dataset.id);
-    if (fiche) fiche.onclick = () => ouvrirFiche(el.dataset.id);
+    if (sortir) sortir.onclick = (e) => { e.stopPropagation(); dialogueSortie(el.dataset.id); };
+    if (fiche) fiche.onclick = (e) => { e.stopPropagation(); ouvrirFiche(el.dataset.id); };
   });
 }
 
@@ -1264,7 +1276,7 @@ async function lancerConseil(repas) {
   const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
   if (!enCave.length) return toast('Votre cave est vide — ajoutez des bouteilles !');
   pousserHisto(repas);
-  $('#orbe-transcript').textContent = repas;
+  majTranscript(repas);
   const { apiKey } = store.get().settings;
 
   // Question libre (budget, nombre de convives, conservation…) → IA directement
@@ -1308,9 +1320,34 @@ async function lancerConseil(repas) {
   rendreHisto();
   orbeAuRepos();
   vibrer('succes');
-  // la scène est haute : on amène les bouteilles sous les yeux
-  setTimeout(() => zone.scrollIntoView({ behavior: reduitMouvement() ? 'auto' : 'smooth', block: 'start' }), 250);
+  // on défile vers les cartes quand la condensation de la scène est VRAIMENT
+  // finie (transitionend) — un minuteur seul mesure une cible encore mouvante
+  defilerVersResultats(zone);
   dire(argumentaire(choix[0], profil, 0));
+}
+
+/* Amène les cartes sous les yeux une fois la scène condensée. */
+function defilerVersResultats(zone) {
+  const scene = $('#orbe-scene');
+  const MARGE = 64; // l'en-tête reste visible au-dessus de la première carte
+  let fait = false;
+  const viser = () => zone.getBoundingClientRect().top + window.scrollY - MARGE;
+  const defiler = () => {
+    if (fait) return;
+    fait = true;
+    window.scrollTo({ top: viser(), behavior: reduitMouvement() ? 'auto' : 'smooth' });
+    // correction différée : si la cible a bougé sous le scroll (transition
+    // tardive, clavier qui se replie…), on réajuste discrètement
+    setTimeout(() => {
+      if (Math.abs(zone.getBoundingClientRect().top - MARGE) > 28) {
+        window.scrollTo({ top: viser(), behavior: 'auto' });
+      }
+    }, 750);
+  };
+  scene.addEventListener('transitionend', (e) => {
+    if (e.propertyName === 'height') defiler();
+  }, { once: true });
+  setTimeout(defiler, 900); // filet : si la transition ne se signale pas
 }
 
 function initSommelier() {
@@ -1332,7 +1369,7 @@ function initSommelier() {
     if (!voixDisponible) { basculerEcrire(true); return; }
     vibrer('tic');
     $('#orbe-scene').classList.remove('compacte');
-    $('#orbe-transcript').textContent = '';
+    majTranscript('');
     statutOrbe('Je vous écoute…');
     orbe.ecouter();
     let texteFinal = '';
@@ -1347,7 +1384,7 @@ function initSommelier() {
         const croissance = txt.length - texteFinal.length;
         if (croissance > 0) orbe.impulsionVoix(Math.min(1, croissance / 14));
         texteFinal = txt;
-        $('#orbe-transcript').textContent = txt;
+        majTranscript(txt);
       },
       onEnd: () => {
         dicteeEnCours = null;
@@ -1714,7 +1751,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Som' · v28</p>
+      <p class="profil-version">Som' · v29</p>
     </div>`;
 
   // — Identité —

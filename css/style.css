@@ -441,16 +441,27 @@ input[type="range"]::-webkit-slider-thumb {
   text-align: center; font-size: 12px; letter-spacing: .03em;
   color: var(--creme-45); pointer-events: none;
 }
-/* sous-titres de cinéma : la transcription se pose sur la matière */
+/* sous-titres de cinéma : 2 lignes visibles, le début s'efface par le
+   haut au fil de la parole ; boîte discrète, défilable au doigt pour
+   relire toute la phrase */
 .sous-titres {
-  position: absolute; left: 16px; right: 16px; bottom: 186px; z-index: 2;
-  text-align: center; pointer-events: none;
+  position: absolute; left: 22px; right: 22px; bottom: 296px; z-index: 2;
+  text-align: center;
   font-family: var(--serif); font-style: italic; font-weight: 600;
-  font-size: 22px; line-height: 1.25; overflow-wrap: anywhere;
+  font-size: 21px; line-height: 1.28; overflow-wrap: anywhere;
   color: var(--creme);
-  text-shadow: 0 1px 3px var(--encre), 0 0 14px var(--encre), 0 0 30px var(--encre);
+  text-shadow: 0 1px 3px var(--encre), 0 0 14px var(--encre);
+  max-height: calc(2 * 1.28em + 16px); /* deux lignes + respiration */
+  overflow-y: auto; scrollbar-width: none;
+  background: rgba(18, 10, 13, .30);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border-radius: 12px; padding: 8px 14px;
 }
+.sous-titres::-webkit-scrollbar { display: none; }
 .sous-titres:empty { display: none; }
+html[data-theme="clair"] .sous-titres { background: rgba(252, 246, 233, .45); }
+/* scène condensée : le sous-titre (le repas demandé) se cale en bas */
+.scene-fluide.compacte .sous-titres { bottom: 12px; }
 /* outils en surimpression : verre dépoli sur la matière */
 .fluide-outils {
   position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 3;
