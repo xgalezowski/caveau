@@ -28,30 +28,56 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 // PWA : cache offline + mise à jour automatique.
-// Quand un nouveau SW prend la main (skipWaiting + claim), la page se
-// recharge une fois toute seule : plus besoin du « double rechargement ».
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   // updateViaCache 'none' : le script du SW est TOUJOURS revérifié au réseau
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
     .then((reg) => {
       const verifier = () => reg.update().catch(() => {});
       // PWA installée : le processus peut vivre des jours — on revérifie
-      // au retour au premier plan ET toutes les minutes tant qu'on est ouvert
-      // (sinon une app laissée au premier plan ne se met jamais à jour).
+      // au retour au premier plan ET toutes les minutes tant qu'on est ouvert.
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) verifier();
       });
       setInterval(() => { if (!document.hidden) verifier(); }, 60000);
+
+      // Un nouveau SW en attente (waiting) = mise à jour prête à installer.
+      // On lui dit de prendre les commandes tout de suite via un message.
+      function activerSWEnAttente(sw) {
+        sw.postMessage({ type: 'SKIP_WAITING' });
+      }
+      // SW déjà en attente dès l'enregistrement (déploiement récent)
+      if (reg.waiting) activerSWEnAttente(reg.waiting);
+      // SW qui passe en waiting pendant la session
+      reg.addEventListener('updatefound', () => {
+        const nouveau = reg.installing;
+        if (!nouveau) return;
+        nouveau.addEventListener('statechange', () => {
+          if (nouveau.state === 'installed' && navigator.serviceWorker.controller) {
+            activerSWEnAttente(nouveau);
+          }
+        });
+      });
     })
     .catch((e) => console.warn('SW non enregistré', e));
 
+  // Quand un nouveau SW prend le contrôle, on recharge la page.
+  // On utilise un toast cliquable plutôt qu'un reload silencieux : sur Android
+  // PWA, location.reload() peut être ignoré si la page est en arrière-plan.
   const avaitControleur = !!navigator.serviceWorker.controller;
   let dejaRecharge = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    // Première installation : claim() déclenche aussi cet événement,
-    // mais il n'y a rien de neuf à recharger.
     if (!avaitControleur || dejaRecharge) return;
     dejaRecharge = true;
-    location.reload();
+    // Tentative de rechargement automatique ; si la page est au premier plan
+    // ça marche directement. Sinon l'utilisateur verra le toast au retour.
+    if (!document.hidden) {
+      location.reload();
+    } else {
+      document.addEventListener('visibilitychange', function rechargerAuRetour() {
+        if (document.hidden) return;
+        document.removeEventListener('visibilitychange', rechargerAuRetour);
+        location.reload();
+      });
+    }
   });
 }

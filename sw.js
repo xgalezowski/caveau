@@ -1,5 +1,5 @@
 // Service worker : cache-first pour un fonctionnement 100 % hors-ligne.
-const CACHE = 'caveau-v34';
+const CACHE = 'caveau-v35';
 const ASSETS = [
   './', 'index.html', 'css/style.css',
   'js/app.js', 'js/ui.js', 'js/store.js', 'js/parser.js', 'js/sommelier.js',
@@ -24,6 +24,12 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// app.js peut envoyer SKIP_WAITING pour forcer l'activation immédiate
+// (double filet avec le skipWaiting() déjà dans install).
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (e) => {
