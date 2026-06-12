@@ -3,6 +3,7 @@
 // Module pur, testable sous Node.
 
 import { corpsDe, maturite, caractereDe } from './wine-data.js';
+import { t } from './i18n.js';
 
 function norm(s) {
   // NFD ne décompose pas les ligatures (œ, æ) : on les traite à part.
@@ -107,35 +108,35 @@ export function scoreBouteille(b, profil, occasion, annee, budgetMax = null) {
   const corps = corpsDe(b.region, couleur);
   const deltaCorps = Math.abs(corps - profil.corps);
   score += (2 - deltaCorps) * 4;
-  if (deltaCorps === 0) raisons.push('structure parfaitement calibrée pour le plat');
+  if (deltaCorps === 0) raisons.push(t('somm.structureOk'));
 
   // 3. Région recommandée
   const iReg = profil.regions.indexOf(b.region);
-  if (iReg >= 0) { score += (3 - iReg) * 3; raisons.push(`accord classique ${b.region} / ${profil.plat || 'ce plat'}`); }
+  if (iReg >= 0) { score += (3 - iReg) * 3; raisons.push(t('somm.accordRegion').replace('{region}', b.region).replace('{plat}', profil.plat || t('somm.ceRepas'))); }
 
   // 4. Maturité — on privilégie l'apogée et on sauve les urgences
   const m = maturite(b, annee);
-  if (m.code === 'apogee') { score += 8; raisons.push('à son apogée en ce moment'); }
-  else if (m.code === 'urgent') { score += 10; raisons.push('à boire en priorité avant qu\'il ne décline'); }
-  else if (m.code === 'approche') { score += 3; raisons.push('proche de son apogée'); }
-  else if (m.code === 'jeune') { score -= 8; raisons.push('encore jeune — dommage de l\'ouvrir maintenant'); }
+  if (m.code === 'apogee') { score += 8; raisons.push(t('somm.apogee')); }
+  else if (m.code === 'urgent') { score += 10; raisons.push(t('somm.urgent')); }
+  else if (m.code === 'approche') { score += 3; raisons.push(t('somm.approche')); }
+  else if (m.code === 'jeune') { score -= 8; raisons.push(t('somm.jeune')); }
   else if (m.code === 'passe') { score -= 3; }
 
   // 5. Prix vs occasion
   if (b.prix != null) {
     const [lo, hi] = BUDGET[occasion] || BUDGET.weekend;
     if (b.prix >= lo && b.prix <= hi) score += 4;
-    else if (occasion === 'semaine' && b.prix > 60) { score -= 10; raisons.push('trop précieux pour un soir de semaine'); }
+    else if (occasion === 'semaine' && b.prix > 60) { score -= 10; raisons.push(t('somm.tropPrecieux')); }
     else if (occasion === 'grande' && b.prix < 15) score -= 4;
-    if (occasion === 'grande' && b.prix >= 50) raisons.push('une grande bouteille à la hauteur de l\'occasion');
+    if (occasion === 'grande' && b.prix >= 50) raisons.push(t('somm.grandeOccasion'));
   }
 
   // 5 bis. Le caractère de l'occasion, au-delà du prix
   const anneeRef = annee || new Date().getFullYear();
   if (occasion === 'grande') {
-    if (PRESTIGE.includes(b.region)) { score += 3; raisons.push(`${b.region}, une signature qui marque le coup`); }
+    if (PRESTIGE.includes(b.region)) { score += 3; raisons.push(t('somm.signatureRegion').replace('{region}', b.region)); }
     if (b.millesime && anneeRef - b.millesime >= 8 && m.code !== 'passe') {
-      score += 3; raisons.push(`un ${b.millesime} arrivé à pleine maturité`);
+      score += 3; raisons.push(t('somm.maturiteMillesime').replace('{millesime}', b.millesime));
     }
   }
   if (occasion === 'semaine') {
@@ -184,14 +185,15 @@ export function surprise(bottles, annee, alea = Math.random()) {
 export function argumentaire(choix, profil, rang = 0) {
   const b = choix.bottle;
   const nom = [b.nom, b.millesime].filter(Boolean).join(' ');
-  const plat = profil.plat ? `${profil.plat === 'apéritif' ? 'l\'' : 'votre '}${profil.plat}` : 'ce repas';
+  const pPlat = profil.plat ? t(`somm.plat.${profil.plat.replace(/ \/ | /g, '').toLowerCase().replace(/[éè]/g, 'e')}`) || profil.plat : '';
+  const plat = pPlat ? (pPlat.match(/^[aeiouéè]/i) ? `l'${pPlat}` : `votre ${pPlat}`) : t('somm.ceRepas');
   const carac = caractereDe(b.region, b.couleur);
   const cepages = b.cepages || carac?.cep;
 
   const accroches = [
-    `L'accord évident pour ${plat} : le ${nom}.`,
-    `En alternative, le ${nom} mérite qu'on hésite.`,
-    `Et pour sortir des sentiers battus, osez le ${nom}.`,
+    t('somm.accroche0').replace('{plat}', plat).replace('{nom}', nom),
+    t('somm.accroche1').replace('{nom}', nom),
+    t('somm.accroche2').replace('{nom}', nom),
   ];
   let phrase = accroches[Math.min(rang, 2)];
 
@@ -199,9 +201,10 @@ export function argumentaire(choix, profil, rang = 0) {
   // Si la bouteille a sa propre description (IA ou saisie), on n'invente pas
   // de notes génériques qui contrediraient ce que la fiche affiche.
   const notesOk = !b.description && carac;
-  if (cepages) phrase += ` ${rang === 1 ? 'Son' : 'Le'} ${cepages} y parle ${notesOk ? `sur des notes de ${carac.notes}` : 'avec son caractère propre'}`;
-  else if (notesOk) phrase += ` On y retrouve ${carac.notes}`;
-  if (cepages || notesOk) phrase += rang === 2 ? ' — exactement le grain de folie qu\'il faut ici.' : ', taillé pour la table de ce soir.';
+  const _cepage = rang === 1 ? `Son ${cepages}` : `Le ${cepages}`;
+  if (cepages) phrase += ' ' + (notesOk ? t('somm.cepageParle').replace('{cepage}', _cepage).replace('{notes}', carac.notes) : t('somm.cepageParleSimple').replace('{cepage}', _cepage));
+  else if (notesOk) phrase += ' ' + t('somm.onRetrouve').replace('{notes}', carac.notes);
+  if (cepages || notesOk) phrase += rang === 2 ? t('somm.grainFolie') : t('somm.finTable');
 
   // une raison du moteur — décalée selon le rang pour que deux cartes
   // voisines ne répètent pas le même argument
@@ -214,15 +217,15 @@ export function argumentaire(choix, profil, rang = 0) {
   const couleur = String(b.couleur || '').toLowerCase();
   const m = choix.maturite;
   if (couleur === 'rouge') {
-    phrase += m && m.code === 'jeune'
-      ? ' Carafez-le une bonne heure, il s\'ouvrira.'
-      : [' Ouvrez-le trente minutes avant, servez autour de 17 °C.',
-         ' Un passage en carafe ne lui fera que du bien.',
-         ' Servez-le légèrement rafraîchi, il n\'en sera que plus digeste.'][rang % 3];
-  } else if (couleur === 'effervescent') phrase += ' Bien frais, 8 °C, dans de vrais verres à vin.';
-  else if (couleur === 'blanc') phrase += ' Servez-le à 11 °C, pas glacé — il a des choses à dire.';
-  else if (couleur === 'rosé') phrase += ' Frais mais pas frigorifié : 10 °C, c\'est parfait.';
-  else if (couleur === 'moelleux') phrase += ' Frais, 9 °C, en petites gorgées heureuses.';
+    phrase += ' ' + (m && m.code === 'jeune'
+      ? t('somm.serviceRougeJeune')
+      : [t('somm.serviceRouge0'),
+         t('somm.serviceRouge1'),
+         t('somm.serviceRouge2')][rang % 3]);
+  } else if (couleur === 'effervescent') phrase += ' ' + t('somm.serviceEffervescent');
+  else if (couleur === 'blanc') phrase += ' ' + t('somm.serviceBlanc');
+  else if (couleur === 'rosé') phrase += ' ' + t('somm.serviceRose');
+  else if (couleur === 'moelleux') phrase += ' ' + t('somm.serviceMoelleux');
 
   return phrase;
 }

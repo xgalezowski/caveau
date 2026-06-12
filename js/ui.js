@@ -132,11 +132,11 @@ function rendre(nom) {
 /* ═══ Onboarding : une bulle par écran, à la première visite seulement.
    Les titres descriptifs ont disparu — c'est elle qui présente les lieux. ═══ */
 const ONBOARDING = {
-  cave: 'Votre collection, rangée par région. Cherchez, filtrez, touchez une bouteille pour ouvrir sa fiche.',
-  ajouter: 'Faites entrer des bouteilles : dictez-les, photographiez les étiquettes ou remplissez une fiche.',
-  sommelier: 'Touchez le micro et dites votre repas — le sommelier choisit dans votre cave. Glissez le doigt sur l\'encre pour jouer avec le vin.',
-  alertes: 'Vos veilles de stock et les urgences : soyez prévenu quand un vin doit être bu ou racheté.',
-  stats: 'La valeur et l\'équilibre de votre cave en chiffres — et la carte du monde de vos vins.',
+  cave: () => t('onboard.cave'),
+  ajouter: () => t('onboard.ajouter'),
+  sommelier: () => t('onboard.sommelier'),
+  alertes: () => t('onboard.alertes'),
+  stats: () => t('onboard.stats'),
 };
 function bulleOnboarding(nom) {
   const cle = `caveau:onboard:${nom}`;
@@ -144,7 +144,7 @@ function bulleOnboarding(nom) {
   localStorage.setItem(cle, '1');
   const bulle = document.createElement('div');
   bulle.className = 'bulle-onboard';
-  bulle.innerHTML = `<p>${ONBOARDING[nom]}</p><button>Compris</button>`;
+  bulle.innerHTML = `<p>${ONBOARDING[nom]()}</p><button>${t('onboard.compris')}</button>`;
   // sur le Sommelier, la bulle flotte sur la scène fluide
   const hote = nom === 'sommelier' ? $('#orbe-scene') : $(`#ecran-${nom}`);
   hote.prepend(bulle);
@@ -166,13 +166,13 @@ function optionsRegion(selection, pays) {
   const connues = [...new Set([...base, selection])]
     .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
   return connues.map((r) => `<option ${r === selection ? 'selected' : ''}>${esc(r)}</option>`).join('') +
-    '<option value="__autre">➕ Autre région…</option>';
+    `<option value="__autre">${t('select.autreRegion')}</option>`;
 }
 function optionsPays(selection) {
   const connus = [...new Set([...PAYS, ...store.get().bottles.map((b) => b.pays), selection])]
     .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
-  return connus.map((p) => `<option ${p === selection ? 'selected' : ''}>${esc(p)}</option>`).join('') +
-    '<option value="__autre">➕ Autre pays…</option>';
+  return connues.map((p) => `<option ${p === selection ? 'selected' : ''}>${esc(p)}</option>`).join('') +
+    `<option value="__autre">${t('select.autrePays')}</option>`;
 }
 // Branche les couples pays ↔ région d'un conteneur : « Autre… » crée une
 // valeur libre, et changer le pays refiltre la liste des régions.
@@ -180,7 +180,7 @@ function brancherSelectsRegion(racine) {
   racine.querySelectorAll('select[data-region]').forEach((sel) => {
     sel.onchange = () => {
       if (sel.value !== '__autre') return;
-      const nom = (prompt('Nom de la nouvelle région :') || '').trim();
+      const nom = (prompt(t('prompt.nouvelleRegion')) || '').trim();
       if (nom) {
         const opt = document.createElement('option');
         opt.textContent = nom; opt.selected = true;
@@ -191,7 +191,7 @@ function brancherSelectsRegion(racine) {
   racine.querySelectorAll('select[data-pays]').forEach((sel) => {
     sel.onchange = () => {
       if (sel.value === '__autre') {
-        const nom = (prompt('Nom du pays :') || '').trim();
+        const nom = (prompt(t('prompt.nouveauPays')) || '').trim();
         if (nom) {
           const opt = document.createElement('option');
           opt.textContent = nom; opt.selected = true;
@@ -256,9 +256,9 @@ function rendreCave() {
   const valeurTxt = settings.valeurCachee ? '•••' : `${Math.round(valeur)} €`;
   const aBoire = enCave.filter((b) => b.categorie !== 'spiritueux' && ['apogee', 'urgent'].includes(maturite(b).code)).reduce((s, b) => s + b.qty, 0);
   $('#bandeau-valeur').innerHTML = `
-    <div><div class="v">${nb}</div><div class="l">bouteilles</div></div>
-    <div id="cellule-valeur" title="Toucher pour masquer/afficher"><div class="v">${valeurTxt}</div><div class="l">valeur ${settings.valeurCachee ? '👁' : ''}</div></div>
-    ${catCave === 'vin' ? `<div><div class="v">${aBoire}</div><div class="l">à boire</div></div>` : `<div><div class="v">${enCave.length}</div><div class="l">références</div></div>`}`;
+    <div><div class="v">${nb}</div><div class="l">${t('cave.bouteilles')}</div></div>
+    <div id="cellule-valeur" title="Toucher pour masquer/afficher"><div class="v">${valeurTxt}</div><div class="l">${t('cave.valeur')} ${settings.valeurCachee ? '👁' : ''}</div></div>
+    ${catCave === 'vin' ? `<div><div class="v">${aBoire}</div><div class="l">${t('cave.aboire')}</div></div>` : `<div><div class="v">${enCave.length}</div><div class="l">${t('cave.references')}</div></div>`}`;
   $('#cellule-valeur').onclick = () => {
     store.majSettings({ valeurCachee: !store.get().settings.valeurCachee });
     rendreCave();
@@ -267,9 +267,9 @@ function rendreCave() {
   // Filtres : couleur pour les vins · type + ouverte/fermée pour les spiritueux
   if (catCave === 'vin') {
     $('#filtres-couleur').innerHTML =
-      `<button class="puce puce-aboire ${filtreMaturite === 'aboire' ? 'actif' : ''}" data-mat="aboire" style="margin-right:10px">${ico('verre', 12)} À boire</button>` +
+      `<button class="puce puce-aboire ${filtreMaturite === 'aboire' ? 'actif' : ''}" data-mat="aboire" style="margin-right:10px">${ico('verre', 12)} ${t('cave.filtreAboire')}</button>` +
       ['toutes', ...COULEURS].map((c) =>
-        `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? 'Toutes' : c}</button>`
+        `<button class="puce ${((c === 'toutes' && !filtreCouleur) || c === filtreCouleur) ? 'actif' : ''}" data-c="${c}">${c === 'toutes' ? t('cave.toutes') : t(`couleur.${c}`)}</button>`
       ).join('');
     $('#filtres-couleur').querySelectorAll('[data-c]').forEach((p) => p.onclick = () => {
       filtreCouleur = p.dataset.c === 'toutes' ? null : p.dataset.c;
@@ -280,12 +280,12 @@ function rendreCave() {
       rendreCave();
     });
   } else {
-    const typesPresents = [...new Set(enCave.map((b) => b.type || 'Autre'))].sort((a, z) => a.localeCompare(z, 'fr'));
+    const typesPresents = [...new Set(enCave.map((b) => b.type || t('format.autre')))].sort((a, z) => a.localeCompare(z, 'fr'));
     $('#filtres-couleur').innerHTML =
-      `<button class="puce ${!filtreTypeSpirit ? 'actif' : ''}" data-t="__tous">Tous</button>` +
+      `<button class="puce ${!filtreTypeSpirit ? 'actif' : ''}" data-t="__tous">${t('cave.tous')}</button>` +
       typesPresents.map((t) => `<button class="puce ${filtreTypeSpirit === t ? 'actif' : ''}" data-t="${esc(t)}">${esc(t)}</button>`).join('') +
-      `<button class="puce ${filtreOuvert === 'ouverte' ? 'actif' : ''}" data-o="ouverte" style="margin-left:10px">🔓 Ouvertes</button>` +
-      `<button class="puce ${filtreOuvert === 'fermee' ? 'actif' : ''}" data-o="fermee">🔒 Fermées</button>`;
+      `<button class="puce ${filtreOuvert === 'ouverte' ? 'actif' : ''}" data-o="ouverte" style="margin-left:10px">${t('cave.ouverte')}</button>` +
+      `<button class="puce ${filtreOuvert === 'fermee' ? 'actif' : ''}" data-o="fermee">${t('cave.fermees')}</button>`;
     $('#filtres-couleur').querySelectorAll('[data-t]').forEach((p) => p.onclick = () => {
       filtreTypeSpirit = p.dataset.t === '__tous' ? null : p.dataset.t;
       rendreCave();
@@ -300,7 +300,7 @@ function rendreCave() {
   if (catCave === 'vin' && filtreCouleur) visibles = visibles.filter((b) => b.couleur === filtreCouleur);
   if (catCave === 'vin' && filtreMaturite === 'aboire') visibles = visibles.filter((b) => A_BOIRE.includes(maturite(b).code));
   if (catCave === 'spiritueux') {
-    if (filtreTypeSpirit) visibles = visibles.filter((b) => (b.type || 'Autre') === filtreTypeSpirit);
+    if (filtreTypeSpirit) visibles = visibles.filter((b) => (b.type || t('format.autre')) === filtreTypeSpirit);
     if (filtreOuvert === 'ouverte') visibles = visibles.filter(estOuverte);
     if (filtreOuvert === 'fermee') visibles = visibles.filter((b) => !estOuverte(b));
   }
@@ -308,11 +308,11 @@ function rendreCave() {
     `${b.nom} ${b.domaine || ''} ${b.appellation || ''} ${b.region || ''} ${b.type || ''} ${b.millesime || ''}`.toLowerCase().includes(recherche));
 
   if (!visibles.length) {
-    const vide = filtreMaturite === 'aboire' ? 'Aucun vin n\'est à boire dès maintenant'
-      : catCave === 'vin' ? 'Votre cave est vide' : 'Aucun spiritueux pour l\'instant';
-    const sous = filtreMaturite === 'aboire' ? 'Tant mieux : rien ne presse, vos vins prennent leur temps.'
-      : enCave.length ? '' : 'Passez par l\'onglet <b>Ajouter</b> — à la voix, c\'est encore mieux.';
-    $('#liste-cave').innerHTML = `<div class="vide"><div class="gros">${enCave.length ? 'Rien ne correspond' : vide}</div>${enCave.length && filtreMaturite !== 'aboire' ? '' : sous}</div>`;
+    const vide = filtreMaturite === 'aboire' ? t('cave.videAboire')
+      : catCave === 'vin' ? t('cave.vide') : t('cave.videSpiriteux');
+    const sous = filtreMaturite === 'aboire' ? t('cave.rienPresse')
+      : enCave.length ? '' : t('cave.ajouterInvite');
+    $('#liste-cave').innerHTML = `<div class="vide"><div class="gros">${enCave.length ? t('cave.videFiltre') : vide}</div>${enCave.length && filtreMaturite !== 'aboire' ? '' : sous}</div>`;
     return;
   }
 
@@ -322,7 +322,7 @@ function rendreCave() {
       (PRIO_DEGUSTATION[maturite(a).code] - PRIO_DEGUSTATION[maturite(z).code])
       || (a.gardeA || 9999) - (z.gardeA || 9999));
     const nbB = liste.reduce((s, b) => s + b.qty, 0);
-    $('#liste-cave').innerHTML = `<div class="groupe-region">${ico('verre', 16)} À boire maintenant <small>${nbB} BTL</small></div>` +
+    $('#liste-cave').innerHTML = `<div class="groupe-region">${ico('verre', 16)} ${t('cave.aBoireMaintenant')} <small>${nbB} ${t('cave.btl')}</small></div>` +
       liste.map(carteHTML).join('');
     cascade($('#liste-cave'));
     $('#liste-cave').querySelectorAll('.carte').forEach((c) => c.onclick = () => ouvrirFiche(c.dataset.id));
@@ -332,7 +332,7 @@ function rendreCave() {
   // Vins groupés par région · spiritueux groupés par type
   const cle = catCave === 'vin' ? 'region' : 'type';
   const groupes = {};
-  visibles.forEach((b) => (groupes[b[cle] || 'Autre'] ??= []).push(b));
+  visibles.forEach((b) => (groupes[b[cle] || t('format.autre')] ??= []).push(b));
   const groupesTries = Object.keys(groupes).sort((a, z) =>
     groupes[z].reduce((s, b) => s + b.qty, 0) - groupes[a].reduce((s, b) => s + b.qty, 0));
 
@@ -341,7 +341,7 @@ function rendreCave() {
       ? groupes[g].sort((a, z) => maturite(a).ordre - maturite(z).ordre)
       : groupes[g].sort((a, z) => (a.nom || '').localeCompare(z.nom || ''));
     const nbG = liste.reduce((s, b) => s + b.qty, 0);
-    return `<div class="groupe-region">${esc(g)} <small>${nbG} BTL</small></div>` +
+    return `<div class="groupe-region">${esc(g)} <small>${nbG} ${t('cave.btl')}</small></div>` +
       liste.map(carteHTML).join('');
   }).join('');
 
@@ -356,8 +356,8 @@ function carteHTML(b) {
       ${imageAffichee(b) ? `<img class="carte-thumb" src="${imageAffichee(b)}" alt="">` : ''}
       <div class="carte-corps">
         <div class="carte-nom">${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
-        <div class="carte-meta">${esc(b.type || 'Spiritueux')}${b.age ? ` · ${b.age} ans` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
-        ${estOuverte(b) ? `<span class="cachet ${b.niveau <= 25 ? 'cachet-urgent' : 'cachet-approche'}">${b.niveau <= 25 ? '⚡ À finir' : '🔓 Ouverte'} · ${b.niveau} %</span>` : ''}
+        <div class="carte-meta">${esc(b.type || t('tab.spiritueux'))}${b.age ? ` · ${b.age} ${t('spirit.age').split(' ')[0].toLowerCase()}` : ''}${b.alcool ? ` · ${b.alcool}%` : ''}${b.prix ? ` · ${b.prix} €` : ''}${b.noteWeb ? ` · <span class="note-viv">★ ${esc(b.noteWeb)}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
+        ${estOuverte(b) ? `<span class="cachet ${b.niveau <= 25 ? 'cachet-urgent' : 'cachet-approche'}">${b.niveau <= 25 ? t('cave.aFinir') : t('cave.ouverte')} · ${b.niveau} %</span>` : ''}
       </div>
       <div class="carte-fin"><div class="carte-qty">×<b>${b.qty}</b></div></div>
     </div>`;
@@ -369,7 +369,7 @@ function carteHTML(b) {
     <div class="carte-corps">
       <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
       <div class="carte-meta">${esc(b.appellation || b.region)}${b.prix ? ` · ${b.prix} €` : ''}${b.noteVivino ? ` · <span class="note-viv">★ ${String(b.noteVivino).replace('.', ',')}</span>` : ''}${b.maNote ? ` · <span class="note-moi">${b.maNote}/100</span>` : ''}</div>
-      <span class="cachet cachet-${m.code}">${m.label}</span>
+      <span class="cachet cachet-${m.code}">${t(`mat.${m.code}`)}</span>
     </div>
     <div class="carte-fin"><div class="carte-qty">×<b>${b.qty}</b></div></div>
   </div>`;
@@ -398,14 +398,14 @@ function blocImage(b) {
   const aff = imageAffichee(b);
   const input = `<input type="file" accept="image/*" data-photo="${b.id}" hidden>`;
   if (aff) {
-    const regen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${b.photoOrig ? `${ico('etincelles', 12)} Embellir le décor` : `${ico('refresh', 12)} Régénérer`}</button>` : '';
-    const revert = (b.image && b.photoOrig) ? `<button class="photo-regen" data-revert="${b.id}">↩︎ Ma photo</button>` : '';
-    const photo = `<button class="photo-regen" data-photobtn="${b.id}">${ico('photo', 12)} ${b.photoOrig ? 'Changer la photo' : 'Mettre ma photo'}</button>`;
+    const regen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${b.photoOrig ? `${ico('etincelles', 12)} ${t('fiche.embellir')}` : `${ico('refresh', 12)} ${t('fiche.regenerer')}`}</button>` : '';
+    const revert = (b.image && b.photoOrig) ? `<button class="photo-regen" data-revert="${b.id}">↩︎ ${t('fiche.mettrePhoto')}</button>` : '';
+    const photo = `<button class="photo-regen" data-photobtn="${b.id}">${ico('photo', 12)} ${b.photoOrig ? t('fiche.changerPhoto') : t('fiche.mettrePhoto')}</button>`;
     return `<div class="photo-bouteille"><img src="${aff}" alt="${esc(b.nom || '')}"><div class="photo-actions">${regen}${revert}${photo}</div>${input}</div>`;
   }
   // Pas encore d'image : ajouter sa photo (toujours) + générer (si clé)
-  const gen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${ico('etincelles', 12)} Générer une illustration</button>` : '';
-  return `<div class="photo-bouteille"><div class="photo-actions"><button class="photo-regen" data-photobtn="${b.id}">${ico('photo', 12)} Ajouter ma photo</button>${gen}</div>${input}</div>`;
+  const gen = apiKey ? `<button class="photo-regen" data-regen="${b.id}">${ico('etincelles', 12)} ${t('fiche.genererIllustration')}</button>` : '';
+  return `<div class="photo-bouteille"><div class="photo-actions"><button class="photo-regen" data-photobtn="${b.id}">${ico('photo', 12)} ${t('fiche.ajouterPhoto')}</button>${gen}</div>${input}</div>`;
 }
 
 // Rebranche les boutons du bloc image (photo / régénérer / revenir à ma photo).
@@ -431,7 +431,7 @@ function monterImage(id) {
 // Attache la photo prise par l'utilisateur comme image de la bouteille.
 async function attacherPhoto(id, file) {
   const slot = $('.photo-bouteille');
-  if (slot) slot.innerHTML = '<div class="photo-charge"><span class="photo-shimmer"></span>Enregistrement de votre photo…</div>';
+  if (slot) slot.innerHTML = `<div class="photo-charge"><span class="photo-shimmer"></span>${t('fiche.chargementPhoto')}</div>`;
   try {
     const { dataUrl } = await compresser(file);
     const vignette = await compresserDataUrl(dataUrl, 680, 0.8);
@@ -487,51 +487,51 @@ function ouvrirFiche(id) {
       ${b.gardeDe ? `<span style="margin-left:6px">garde ${b.gardeDe}–${b.gardeA}</span>` : ''}</p>
     ${blocImage(b)}
     <div class="ligne">
-      <div style="flex:3"><label>Nom / cuvée</label><input id="f-nom" value="${esc(b.nom)}"></div>
+      <div style="flex:3"><label>${t('fiche.nom')}</label><input id="f-nom" value="${esc(b.nom)}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:2"><label>Domaine / producteur</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
+      <div style="flex:2"><label>${t('fiche.domaine')}</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:2"><label>Appellation</label><input id="f-appellation" value="${esc(b.appellation || '')}"></div>
-      <div style="flex:1"><label>Millésime</label><input id="f-mil" type="number" value="${b.millesime || ''}"></div>
+      <div style="flex:2"><label>${t('fiche.appellation')}</label><input id="f-appellation" value="${esc(b.appellation || '')}"></div>
+      <div style="flex:1"><label>${t('fiche.millesime')}</label><input id="f-mil" type="number" value="${b.millesime || ''}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1"><label>Pays</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
-      <div style="flex:1"><label>Région</label><select id="f-region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
-      <div style="flex:1"><label>Couleur</label><select id="f-couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
+      <div style="flex:1"><label>${t('fiche.pays')}</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+      <div style="flex:1"><label>${t('fiche.region')}</label><select id="f-region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
+      <div style="flex:1"><label>${t('fiche.couleur')}</label><select id="f-couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
     </div>
     <div class="ligne">
-      <div style="flex:1"><label>Prix (€)</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
-      <div style="flex:1"><label>Quantité</label><input id="f-qty" type="number" min="0" value="${b.qty}"></div>
-      <div style="flex:1"><label>Garde de</label><input id="f-gde" type="number" value="${b.gardeDe || ''}"></div>
-      <div style="flex:1"><label>à</label><input id="f-gda" type="number" value="${b.gardeA || ''}"></div>
+      <div style="flex:1"><label>${t('fiche.prix')}</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
+      <div style="flex:1"><label>${t('fiche.quantite')}</label><input id="f-qty" type="number" min="0" value="${b.qty}"></div>
+      <div style="flex:1"><label>${t('fiche.gardeDe')}</label><input id="f-gde" type="number" value="${b.gardeDe || ''}"></div>
+      <div style="flex:1"><label>${t('fiche.gardeA')}</label><input id="f-gda" type="number" value="${b.gardeA || ''}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1.4"><label>Cépages</label><input id="f-cepages" value="${esc(Array.isArray(b.cepages) ? b.cepages.join(', ') : (b.cepages || ''))}"></div>
-      <div style="flex:1"><label>Format</label><select id="f-format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
-      <div style="flex:.7"><label>% vol</label><input id="f-alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+      <div style="flex:1.4"><label>${t('fiche.cepages')}</label><input id="f-cepages" value="${esc(Array.isArray(b.cepages) ? b.cepages.join(', ') : (b.cepages || ''))}"></div>
+      <div style="flex:1"><label>${t('fiche.format')}</label><select id="f-format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
+      <div style="flex:.7"><label>${t('fiche.alcool')}</label><input id="f-alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
     </div>
     ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
-    <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
+    <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">${t('fiche.monAvis')}</h4>
     <div class="note100-wrap">
-      <label>Ma note <b id="f-manote-val">${b.maNote ? `${b.maNote}/100` : '—'}</b></label>
+      <label>${t('fiche.maNote')} <b id="f-manote-val">${b.maNote ? `${b.maNote}/100` : '—'}</b></label>
       <input id="f-manote" type="range" min="0" max="100" step="1" value="${b.maNote ?? 0}">
     </div>
     <div class="notes-dictee">
-      <div><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
+      <div><label>${t('fiche.notesDegustation')}</label><textarea id="f-notes" rows="2" placeholder="${t('fiche.placeholderNotes')}">${esc(b.notes || '')}</textarea></div>
       <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
     </div>
     <div class="actions">
-      <button class="btn-or" id="f-sortir" style="flex:1.4">${ico('verre', 14)} Je la sors</button>
-      <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
+      <button class="btn-or" id="f-sortir" style="flex:1.4">${ico('verre', 14)} ${t('fiche.jeLaSors')}</button>
+      <button class="btn-sombre" id="f-save" style="flex:1">${t('fiche.enregistrer')}</button>
     </div>
     <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
     <div id="f-equiv"></div>
-    ${store.get().settings.apiKey ? `<button class="btn-fantome" id="f-btn-equiv">${ico('etincelles', 14)} Trouver des équivalents (IA)</button>` : ''}
-    <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
+    ${store.get().settings.apiKey ? `<button class="btn-fantome" id="f-btn-equiv">${ico('etincelles', 14)} ${t('fiche.equivalents')}</button>` : ''}
+    <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">${t('fiche.supprimer')}</button>`;
   montrerFeuille(true);
   monterImage(id);
 
@@ -552,7 +552,7 @@ function ouvrirFiche(id) {
       maNote: Math.min(100, Math.max(1, parseInt($('#f-manote').value))) || null,
       notes: $('#f-notes').value,
     });
-    montrerFeuille(false); rendre(ecranActif); toast('Fiche mise à jour');
+    montrerFeuille(false); rendre(ecranActif); toast(t('fiche.toastMAJ'));
   };
   if (!voixDisponible) $('#f-micro-notes').style.display = 'none';
   $('#f-micro-notes').onclick = () => {
@@ -570,18 +570,18 @@ function ouvrirFiche(id) {
   };
   $('#f-sortir').onclick = () => { dialogueSortie(id); }; // remplace le contenu, modale déjà ouverte
   $('#f-suppr').onclick = () => {
-    if (confirm(`Supprimer « ${b.nom} » de la cave ?`)) {
-      store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast('Référence supprimée');
+    if (confirm(t('fiche.confirmerSuppression').replace('{nom}', b.nom))) {
+      store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast(t('fiche.toastSupprimee'));
     }
   };
   const btnEq = $('#f-btn-equiv');
   if (btnEq) btnEq.onclick = async () => {
-    btnEq.innerHTML = `${ico('etincelles', 14)} Le caviste réfléchit…`; btnEq.disabled = true;
+    btnEq.innerHTML = `${ico('etincelles', 14)} ${t('fiche.equivalentsChargement')}`; btnEq.disabled = true;
     try {
       const rep = await equivalents(store.get().settings.apiKey, b);
       $('#f-equiv').innerHTML = `<div class="bulle-ia">${esc(rep)}</div>`;
     } catch (e) { toast(e.message); }
-    btnEq.innerHTML = `${ico('etincelles', 14)} Trouver des équivalents (IA)`; btnEq.disabled = false;
+    btnEq.innerHTML = `${ico('etincelles', 14)} ${t('fiche.equivalents')}`; btnEq.disabled = false;
   };
 }
 
@@ -593,42 +593,42 @@ function ouvrirFicheSpirit(b) {
       ${b.noteWeb ? `<span class="note-viv" style="margin-left:6px">★ ${esc(b.noteWeb)}</span>` : ''}</p>
     ${blocImage(b)}
     <div class="ligne">
-      <div style="flex:1"><label>Type</label><select id="f-type">${optionsListe(TYPES_SPIRITUEUX, b.type || 'Autre')}</select></div>
-      <div style="flex:1.3"><label>Marque / distillerie</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
+      <div style="flex:1"><label>${t('spirit.type')}</label><select id="f-type">${optionsListe(TYPES_SPIRITUEUX, b.type || t('format.autre'))}</select></div>
+      <div style="flex:1.3"><label>${t('spirit.marque')}</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1.6"><label>Nom / expression</label><input id="f-nom" value="${esc(b.nom || '')}"></div>
-      <div style="flex:.7"><label>Âge (ans)</label><input id="f-age" type="number" min="0" value="${b.age ?? ''}"></div>
-      <div style="flex:.7"><label>% vol</label><input id="f-alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+      <div style="flex:1.6"><label>${t('spirit.nom')}</label><input id="f-nom" value="${esc(b.nom || '')}"></div>
+      <div style="flex:.7"><label>${t('spirit.age')}</label><input id="f-age" type="number" min="0" value="${b.age ?? ''}"></div>
+      <div style="flex:.7"><label>${t('fiche.alcool')}</label><input id="f-alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1"><label>Pays</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
-      <div style="flex:.8"><label>Format</label><select id="f-format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
-      <div style="flex:.7"><label>Prix (€)</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
-      <div style="flex:.7"><label>Qté</label><input id="f-qty" type="number" min="0" value="${b.qty}"></div>
+      <div style="flex:1"><label>${t('fiche.pays')}</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+      <div style="flex:.8"><label>${t('fiche.format')}</label><select id="f-format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
+      <div style="flex:.7"><label>${t('fiche.prix')}</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
+      <div style="flex:.7"><label>${t('fiche.quantite')}</label><input id="f-qty" type="number" min="0" value="${b.qty}"></div>
     </div>
     <div class="bloc-niveau">
-      <label>Niveau restant : <b id="f-niveau-val">${b.niveau ?? 100} %</b><span id="f-niveau-alerte" style="color:var(--rouge-vif)">${(b.niveau ?? 100) <= 25 ? ' — à finir en priorité !' : ''}</span></label>
+      <label>${t('spirit.niveau')} <b id="f-niveau-val">${b.niveau ?? 100} %</b><span id="f-niveau-alerte" style="color:var(--rouge-vif)">${(b.niveau ?? 100) <= 25 ? ` ${t('spirit.aFinir')}` : ''}</span></label>
       <input id="f-niveau" type="range" min="0" max="100" step="5" value="${b.niveau ?? 100}">
     </div>
     ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
-    <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
+    <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">${t('spirit.monAvis')}</h4>
     <div class="note100-wrap">
-      <label>Ma note <b id="f-manote-val">${b.maNote ? `${b.maNote}/100` : '—'}</b></label>
+      <label>${t('fiche.maNote')} <b id="f-manote-val">${b.maNote ? `${b.maNote}/100` : '—'}</b></label>
       <input id="f-manote" type="range" min="0" max="100" step="1" value="${b.maNote ?? 0}">
     </div>
     <div class="notes-dictee">
-      <div><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
+      <div><label>${t('fiche.notesDegustation')}</label><textarea id="f-notes" rows="2" placeholder="${t('fiche.placeholderNotes')}">${esc(b.notes || '')}</textarea></div>
       <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
     </div>
     <div class="actions">
-      <button class="btn-or" id="f-sortir" style="flex:1.4">${ico('flacon', 14)} Je le sors de mon bar</button>
-      <button class="btn-sombre" id="f-save" style="flex:1">Enregistrer</button>
+      <button class="btn-or" id="f-sortir" style="flex:1.4">${ico('flacon', 14)} ${t('spirit.jeLeSors')}</button>
+      <button class="btn-sombre" id="f-save" style="flex:1">${t('fiche.enregistrer')}</button>
     </div>
     <div class="liens-rachat" style="margin-top:14px">${liensRachatHTML(b)}</div>
-    <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">Supprimer cette référence</button>`;
+    <button class="btn-discret btn-danger" id="f-suppr" style="width:100%;margin-top:8px">${t('fiche.supprimer')}</button>`;
   montrerFeuille(true);
   monterImage(id);
   brancherSelectsRegion($('#feuille'));
@@ -648,12 +648,12 @@ function ouvrirFicheSpirit(b) {
       maNote: Math.min(100, Math.max(1, parseInt($('#f-manote').value))) || null,
       notes: $('#f-notes').value,
     });
-    montrerFeuille(false); rendre(ecranActif); toast('Fiche mise à jour');
+    montrerFeuille(false); rendre(ecranActif); toast(t('fiche.toastMAJ'));
   };
   $('#f-niveau').oninput = () => {
     const v = parseInt($('#f-niveau').value);
     $('#f-niveau-val').textContent = `${v} %`;
-    $('#f-niveau-alerte').textContent = v <= 25 && v > 0 ? ' — à finir en priorité !' : '';
+    $('#f-niveau-alerte').textContent = v <= 25 && v > 0 ? ` ${t('spirit.aFinir')}` : '';
   };
   // Le niveau s'enregistre tout seul dès qu'on lâche le curseur
   $('#f-niveau').onchange = () => {
@@ -665,11 +665,11 @@ function ouvrirFicheSpirit(b) {
     vibrer('sortie');
     montrerFeuille(false); rendre(ecranActif);
     const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
-    toast(restant > 0 ? `Sortie du bar. Il en reste ${restant}.` : 'Dernière bouteille sortie du bar — pensez au rachat 😉');
+    toast(restant > 0 ? t('spirit.toastSortie').replace('{restant}', restant) : t('spirit.toastDerniere'));
   };
   $('#f-suppr').onclick = () => {
-    if (confirm(`Supprimer « ${b.nom} » ?`)) {
-      store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast('Référence supprimée');
+    if (confirm(t('fiche.confirmerSuppression').replace('{nom}', b.nom))) {
+      store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast(t('fiche.toastSupprimee'));
     }
   };
   if (!voixDisponible) $('#f-micro-notes').style.display = 'none';
@@ -691,12 +691,12 @@ function ouvrirFicheSpirit(b) {
 function dialogueSortie(id) {
   const b = store.get().bottles.find((x) => x.id === id);
   $('#feuille-contenu').innerHTML = `
-    <h3>On ouvre le ${esc(b.nom)} ${b.millesime || ''} ?</h3>
-    <div class="ligne"><div style="flex:1"><label>L'occasion</label><input id="s-occ" placeholder="Dîner entre amis, anniversaire…"></div></div>
-    <div class="ligne"><div style="flex:1"><label>Première impression (optionnel)</label><input id="s-note" placeholder="Superbe, encore jeune, bouchonné…"></div></div>
+    <h3>${t('sortie.titre').replace('{nom}', esc(b.nom) + (b.millesime ? ' ' + b.millesime : ''))}</h3>
+    <div class="ligne"><div style="flex:1"><label>${t('sortie.occasion')}</label><input id="s-occ" placeholder="${t('sortie.placeholderOccasion')}"></div></div>
+    <div class="ligne"><div style="flex:1"><label>${t('sortie.impression')}</label><input id="s-note" placeholder="${t('sortie.placeholderImpression')}"></div></div>
     <div class="actions">
-      <button class="btn-or" id="s-ok" style="flex:1">Santé ! 🥂</button>
-      <button class="btn-sombre" id="s-annule" style="flex:.6">Annuler</button>
+      <button class="btn-or" id="s-ok" style="flex:1">${t('sortie.sante')}</button>
+      <button class="btn-sombre" id="s-annule" style="flex:.6">${t('sortie.annuler')}</button>
     </div>`;
   montrerFeuille(true);
   $('#s-ok').onclick = () => {
@@ -704,8 +704,8 @@ function dialogueSortie(id) {
     vibrer('sortie');
     montrerFeuille(false); rendre(ecranActif);
     const restant = store.get().bottles.find((x) => x.id === id)?.qty ?? 0;
-    toast(restant > 0 ? `Bonne dégustation ! Il en reste ${restant}.` : 'C\'était la dernière — pensez au rachat 😉');
-    dire(restant > 0 ? alea(PHRASES_SORTIE) : 'C\'était la dernière bouteille. Je la note pour le rachat !');
+    toast(restant > 0 ? t('sortie.toastBonne').replace('{restant}', restant) : t('sortie.toastDerniere'));
+    dire(restant > 0 ? alea(PHRASES_SORTIE) : t('sortie.toastDerniere'));
     majBadgeAlertes();
   };
   $('#s-annule').onclick = () => montrerFeuille(false);
@@ -803,8 +803,8 @@ function liensRachatHTML(b) {
 /* ═══ AJOUTER ═══ */
 function initAjouter() {
   const aideMicro = () => catAjout === 'spiritueux'
-    ? 'Touchez et dictez : « une bouteille de whisky Lagavulin seize ans, quatre-vingts euros »'
-    : 'Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »';
+    ? t('ajout.voixHintSpirit')
+    : t('ajout.voixHint');
   // Texte, voix, photo et fiche (formulaire) sont disponibles pour les vins
   // comme pour les spiritueux — le formulaire affiché dépend de la catégorie.
   const montrerModes = () => {
@@ -814,8 +814,8 @@ function initAjouter() {
     $('#panneau-spiritueux').hidden = !(catAjout === 'spiritueux' && actif === 'forme');
     $('#panneau-fiche-vin').hidden = !(catAjout === 'vin' && actif === 'forme');
     $('#saisie-texte').placeholder = catAjout === 'spiritueux'
-      ? 'Ex : Ardbeg Uigeadail whisky 54,2%, 80€\n2 bouteilles de rhum Clément XO\nGin Monkey 47, 45€'
-      : 'Ex : 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€\nSancerre blanc 2022, 18 euros\nChampagne Bollinger, x2';
+      ? t('ajout.textePlaceholderSpirit')
+      : t('ajout.textePlaceholder');
     $('#micro-aide').textContent = aideMicro();
   };
   $('#categorie-ajout').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
@@ -840,7 +840,7 @@ function initAjouter() {
   $('#btn-analyser-fiche-vin').onclick = () => {
     const nom = $('#fv-nom').value.trim();
     const appellation = $('#fv-appellation').value.trim();
-    if (!nom && !appellation) return toast('Indiquez au moins le nom ou l\'appellation');
+    if (!nom && !appellation) return toast(t('ajout.erreurNom'));
     const millesime = parseInt($('#fv-mil').value) || null;
     const region = $('#fv-region').value;
     const couleur = $('#fv-couleur').value;
@@ -979,7 +979,7 @@ function brancherSuppression() {
     const reste = aAjouter.filter(Boolean).length;
     if (!reste) { aAjouter = []; $('#apercu-ajout').innerHTML = ''; return; }
     const valid = $('#btn-confirmer-ajout');
-    if (valid) valid.textContent = `✓ Valider l'entrée${catAjout === 'spiritueux' ? '' : ' en cave'} (${reste})`;
+    if (valid) valid.textContent = t('ajout.valider').replace('{n}', reste);
   });
 }
 
@@ -987,37 +987,37 @@ function rendreApercu() {
   if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
   $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
     <div class="apercu" data-i="${i}">
-      <div class="apercu-tete"><h4>🍾 Bouteille ${aAjouter.length > 1 ? i + 1 : 'détectée'}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter cette bouteille">✕ Retirer</button></div>
+      <div class="apercu-tete"><h4>${t('ajout.previewVin')} ${aAjouter.length > 1 ? i + 1 : ''}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter cette bouteille">${t('ajout.retirer')}</button></div>
       <div class="ligne">
-        <div style="flex:2"><label>Nom / cuvée</label><input data-k="nom" value="${esc(b.nom)}"></div>
-        <div style="flex:.8"><label>Millésime</label><input data-k="millesime" type="number" value="${b.millesime || ''}"></div>
+        <div style="flex:2"><label>${t('fiche.nom')}</label><input data-k="nom" value="${esc(b.nom)}"></div>
+        <div style="flex:.8"><label>${t('fiche.millesime')}</label><input data-k="millesime" type="number" value="${b.millesime || ''}"></div>
       </div>
       <div class="ligne">
-        <div style="flex:1"><label>Domaine / producteur</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
-        <div style="flex:1"><label>Appellation</label><input data-k="appellation" value="${esc(b.appellation || '')}"></div>
+        <div style="flex:1"><label>${t('fiche.domaine')}</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
+        <div style="flex:1"><label>${t('fiche.appellation')}</label><input data-k="appellation" value="${esc(b.appellation || '')}"></div>
       </div>
       <div class="ligne">
-        <div style="flex:1"><label>Pays</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
-        <div style="flex:1"><label>Région</label><select data-k="region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
-        <div style="flex:1"><label>Couleur</label><select data-k="couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
+        <div style="flex:1"><label>${t('fiche.pays')}</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+        <div style="flex:1"><label>${t('fiche.region')}</label><select data-k="region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
+        <div style="flex:1"><label>${t('fiche.couleur')}</label><select data-k="couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
       </div>
       <div class="ligne">
-        <div style="flex:1"><label>Prix (€)</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
-        <div style="flex:1"><label>Quantité</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
+        <div style="flex:1"><label>${t('fiche.prix')}</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
+        <div style="flex:1"><label>${t('fiche.quantite')}</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
       </div>
       <details class="plus-details">
-        <summary>Plus de détails (cépages, format, degré…)</summary>
+        <summary>${t('ajout.plusDetails')}</summary>
         <div class="ligne">
-          <div style="flex:1.4"><label>Cépages</label><input data-k="cepages" value="${esc(Array.isArray(b.cepages) ? b.cepages.join(', ') : (b.cepages || ''))}" placeholder="grenache, syrah…"></div>
-          <div style="flex:1"><label>Format</label><select data-k="format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
-          <div style="flex:.7"><label>% vol</label><input data-k="alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+          <div style="flex:1.4"><label>${t('fiche.cepages')}</label><input data-k="cepages" value="${esc(Array.isArray(b.cepages) ? b.cepages.join(', ') : (b.cepages || ''))}" placeholder="grenache, syrah…"></div>
+          <div style="flex:1"><label>${t('fiche.format')}</label><select data-k="format">${optionsListe(FORMATS, b.format || '75 cl')}</select></div>
+          <div style="flex:.7"><label>${t('fiche.alcool')}</label><input data-k="alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
         </div>
       </details>
       <p class="statut-enrich">${esc(b.prixInfo || '')}</p>
-      <div class="ligne"><div style="flex:1"><label>Fiche du vin</label><textarea data-k="description" rows="3" placeholder="Description, arômes, accords… (remplie automatiquement si clé IA)">${esc(b.description || '')}</textarea></div></div>
+      <div class="ligne"><div style="flex:1"><label>Fiche</label><textarea data-k="description" rows="3" placeholder="${t('ajout.placeholderDesc')}">${esc(b.description || '')}</textarea></div></div>
     </div>`).join('') +
-    `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
-    <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée en cave (${aAjouter.length})</button>`;
+    `<p class="note-ia" style="text-align:left;margin:10px 2px 0">${t('ajout.relecture')}</p>
+    <button class="btn-or btn-large" id="btn-confirmer-ajout">${t('ajout.valider').replace('{n}', aAjouter.length)}</button>`;
   brancherSelectsRegion($('#apercu-ajout'));
   brancherSuppression();
   enrichirApercu();
@@ -1030,30 +1030,30 @@ function rendreApercuSpirit() {
   if (!aAjouter.length) { $('#apercu-ajout').innerHTML = ''; return; }
   $('#apercu-ajout').innerHTML = aAjouter.map((b, i) => `
     <div class="apercu" data-i="${i}">
-      <div class="apercu-tete"><h4>${ico('flacon', 15)} Spiritueux ${aAjouter.length > 1 ? i + 1 : 'détecté'}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter ce spiritueux">✕ Retirer</button></div>
+      <div class="apercu-tete"><h4>${ico('flacon', 15)} ${t('ajout.previewSpirit')} ${aAjouter.length > 1 ? i + 1 : ''}</h4><button class="apercu-suppr" data-rm="${i}" title="Ne pas ajouter ce spiritueux">${t('ajout.retirer')}</button></div>
       <div class="ligne">
-        <div style="flex:1"><label>Type</label><select data-k="type">${optionsListe(TYPES_SPIRITUEUX, b.type)}</select></div>
-        <div style="flex:1.3"><label>Marque / distillerie</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
+        <div style="flex:1"><label>${t('spirit.type')}</label><select data-k="type">${optionsListe(TYPES_SPIRITUEUX, b.type)}</select></div>
+        <div style="flex:1.3"><label>${t('spirit.marque')}</label><input data-k="domaine" value="${esc(b.domaine || '')}"></div>
       </div>
       <div class="ligne">
-        <div style="flex:1.6"><label>Nom / expression</label><input data-k="nom" value="${esc(b.nom || '')}"></div>
-        <div style="flex:.7"><label>Âge</label><input data-k="age" type="number" min="0" value="${b.age ?? ''}"></div>
-        <div style="flex:.7"><label>% vol</label><input data-k="alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
+        <div style="flex:1.6"><label>${t('spirit.nom')}</label><input data-k="nom" value="${esc(b.nom || '')}"></div>
+        <div style="flex:.7"><label>${t('spirit.age')}</label><input data-k="age" type="number" min="0" value="${b.age ?? ''}"></div>
+        <div style="flex:.7"><label>${t('fiche.alcool')}</label><input data-k="alcool" type="number" step="0.1" value="${b.alcool ?? ''}"></div>
       </div>
       <div class="ligne">
-        <div style="flex:1"><label>Pays</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
-        <div style="flex:.8"><label>Prix (€)</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
-        <div style="flex:.7"><label>Qté</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
+        <div style="flex:1"><label>${t('fiche.pays')}</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
+        <div style="flex:.8"><label>${t('fiche.prix')}</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
+        <div style="flex:.7"><label>${t('fiche.quantite')}</label><input data-k="qty" type="number" min="1" value="${b.qty}"></div>
       </div>
       <div class="bloc-niveau">
-        <label>Niveau restant : <b class="niveau-val">${b.niveau ?? 100} %</b> <small style="color:var(--creme-45)">(déjà ouverte ? ajustez)</small></label>
+        <label>${t('ajout.niveauRestant')} <b class="niveau-val">${b.niveau ?? 100} %</b> <small style="color:var(--creme-45)">${t('ajout.dejaOuverte')}</small></label>
         <input data-k="niveau" type="range" min="0" max="100" step="5" value="${b.niveau ?? 100}">
       </div>
       <p class="statut-enrich">${esc(b.prixInfo || '')}</p>
-      <div class="ligne"><div style="flex:1"><label>Fiche</label><textarea data-k="description" rows="3" placeholder="Distillerie, profil aromatique… (remplie automatiquement si clé IA)">${esc(b.description || '')}</textarea></div></div>
+      <div class="ligne"><div style="flex:1"><label>Fiche</label><textarea data-k="description" rows="3" placeholder="${t('ajout.placeholderDescSpirit')}">${esc(b.description || '')}</textarea></div></div>
     </div>`).join('') +
-    `<p class="note-ia" style="text-align:left;margin:10px 2px 0">🧐 <b>Relisez et corrigez</b> avant de valider — rien n'entre en cave sans votre accord.</p>
-    <button class="btn-or btn-large" id="btn-confirmer-ajout">✓ Valider l'entrée (${aAjouter.length})</button>`;
+    `<p class="note-ia" style="text-align:left;margin:10px 2px 0">${t('ajout.relecture')}</p>
+    <button class="btn-or btn-large" id="btn-confirmer-ajout">${t('ajout.valider').replace('{n}', aAjouter.length)}</button>`;
   brancherSelectsRegion($('#apercu-ajout'));
   brancherSuppression();
   $('#apercu-ajout').querySelectorAll('[data-k="niveau"]').forEach((r) => r.oninput = () => {
@@ -1075,7 +1075,7 @@ async function enrichirApercu() {
     if (!b || b.description) continue; // fiche retirée ou déjà enrichie
     const carte = () => document.querySelector(`.apercu[data-i="${i}"]`);
     const statut = (txt) => { const el = carte()?.querySelector('.statut-enrich'); if (el) el.textContent = txt; };
-    statut('🔎 Recherche du prix et de la fiche sur le web…');
+    statut(t('ajout.rechercheWeb'));
     try {
       const r = await enrichirBouteille(apiKey, b);
       if (lot !== aAjouter) return;
@@ -1129,7 +1129,7 @@ function confirmerAjout() {
   $('#apercu-ajout').innerHTML = '';
   $('#saisie-texte').value = ''; $('#transcript-ajout').textContent = '';
   vibrer('succes');
-  toast(`${n} ${n > 1 ? 'entrées' : 'entrée'} en cave. Santé !`);
+  toast(t('ajout.toastEntree').replace('{n}', n));
   dire(n > 1 ? alea(PHRASES_AJOUT_LOT)(n) : alea(PHRASES_AJOUT));
   majBadgeAlertes();
   // Si on a validé avant la fin de la recherche web, elle continue en
@@ -1169,7 +1169,7 @@ const STATUT_REPOS = 'Touchez le micro et dites votre repas';
 let budgetMax = null; // plafond de prix pour la sélection (null = libre)
 function majBudget(v) {
   budgetMax = v >= 210 ? null : v;
-  $('#budget-aff').textContent = budgetMax ? `≤ ${budgetMax} €` : 'libre';
+  $('#budget-aff').textContent = budgetMax ? `≤ ${budgetMax} €` : t('somm.budgetLibre');
 }
 
 const reduitMouvement = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1214,7 +1214,7 @@ function rendreSommelier() {
   $('#chips-inspi').querySelectorAll('.chip-inspi').forEach((el) => {
     el.onclick = () => { vibrer('tic'); lancerConseil(el.textContent); };
   });
-  if (!voixDisponible) statutOrbe('Choisissez un plat ou écrivez votre repas');
+  if (!voixDisponible) statutOrbe(t('somm.ecrireRepas'));
   rendreHisto();
 }
 function rendreHisto() {
@@ -1225,17 +1225,17 @@ function rendreHisto() {
   });
 }
 
-const MAT_LABELS = { apogee: 'À son apogée', urgent: 'À boire vite', approche: 'Bientôt prête', jeune: 'Encore jeune', passe: 'Sur le déclin' };
+const MAT_LABELS = { apogee: t('mat.apogee'), urgent: t('mat.urgent'), approche: t('mat.approche'), jeune: t('mat.jeune'), passe: t('mat.passe') };
 function carteReco(c, i, profil) {
   const b = c.bottle;
   const pct = pctAccord(c.score);
   const m = c.maturite;
-  const couleur = String(b.couleur || 'rouge').toLowerCase().replace(/\s+/g, '-');
+  const couleur = String(b.couleur || t('couleur.rouge')).toLowerCase().replace(/\s+/g, '-');
   // r=24 → circonférence = 2π×24 ≈ 151 ; dashoffset 0 = plein, 151 = vide
   const offset = 151 - Math.round(151 * pct / 100);
   return `
     <div class="reco ${i === 0 ? 'premier' : ''} reco-c-${esc(couleur)}" data-id="${b.id}">
-      ${i === 0 ? '<div class="reco-ruban">Accord parfait</div>' : ''}
+      ${i === 0 ? `<div class="reco-ruban">${t('somm.accordParfait')}</div>` : ''}
       <div class="reco-tete">
         <div class="reco-corps">
           <div class="reco-nom">${esc(b.nom)}${b.millesime ? ` <span class="mil">${b.millesime}</span>` : ''}</div>
@@ -1247,13 +1247,13 @@ function carteReco(c, i, profil) {
             <circle class="fond" cx="30" cy="30" r="24"/>
             <circle class="jauge" cx="30" cy="30" r="24" stroke-dasharray="151" stroke-dashoffset="${offset}"/>
           </svg>
-          <div class="reco-pct"><b>${pct}%</b><small>accord</small></div>
+          <div class="reco-pct"><b>${pct}%</b><small>${t('somm.accord')}</small></div>
         </div>
       </div>
       <div class="reco-texte">${esc(argumentaire(c, profil, i))}</div>
       <div class="reco-actions">
-        <button data-act="sortir">${ico('verre', 13)} Je la sors</button>
-        <button data-act="fiche">${ico('fiche', 13)} Voir la fiche</button>
+        <button data-act="sortir">${ico('verre', 13)} ${t('somm.jeLaSors')}</button>
+        <button data-act="fiche">${ico('fiche', 13)} ${t('somm.voirFiche')}</button>
       </div>
     </div>`;
 }
@@ -1272,7 +1272,7 @@ function brancherActionsReco(zone) {
 /* Fin de cycle : l'orbe se condense pour laisser la scène aux bouteilles */
 function orbeAuRepos(compacte = true) {
   orbe?.etatVers('repos');
-  statutOrbe(compacte ? 'Touchez le micro pour autre chose' : STATUT_REPOS);
+  statutOrbe(compacte ? t('somm.toucherMicro') : t('somm.repos'));
   $('#orbe-scene').classList.toggle('compacte', compacte);
 }
 
@@ -1282,7 +1282,7 @@ const estQuestionLibre = (q) => q.length > 70 || /\?|€|euros?|personnes|budget
 async function escaladerIA(q) {
   const zone = $('#resultats-sommelier');
   orbe?.etatVers('reflexion');
-  statutOrbe('Le Sommelier+ réfléchit…');
+  statutOrbe(t('somm.chargementPlus'));
   zone.innerHTML = '<div class="reco-squelette"><span class="photo-shimmer"></span></div>';
   try {
     const rep = await sommelierPlus(store.get().settings.apiKey, q, store.get().bottles);
@@ -1295,9 +1295,9 @@ async function escaladerIA(q) {
 
 async function lancerConseil(repas) {
   repas = (repas || '').trim();
-  if (!repas) return toast('Décrivez votre repas d\'abord');
+  if (!repas) return toast(t('ajout.erreurVide'));
   const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
-  if (!enCave.length) return toast('Votre cave est vide — ajoutez des bouteilles !');
+  if (!enCave.length) return toast(t('somm.caveVide'));
   pousserHisto(repas);
   majTranscript(repas);
   const { apiKey, voixActive } = store.get().settings;
@@ -1314,13 +1314,13 @@ async function lancerConseil(repas) {
     if (budgetMax) {
       const sansPlafond = recommander(repas, enCave, occasion, 1);
       if (sansPlafond.choix.length) {
-        zone.innerHTML = `<div class="vide"><div class="gros">Rien sous ${budgetMax} €…</div>Le ${esc(sansPlafond.choix[0].bottle.nom)} serait parfait — élargissez le budget d'un cran ?</div>`;
+        zone.innerHTML = `<div class="vide"><div class="gros">${t('somm.rienBudget').replace('{v}', budgetMax)}</div>Le ${esc(sansPlafond.choix[0].bottle.nom)} serait parfait — élargissez le budget d'un cran ?</div>`;
         orbeAuRepos();
         return;
       }
     }
     if (apiKey) return escaladerIA(repas);
-    zone.innerHTML = `<div class="vide"><div class="gros">Rien d'idéal en cave…</div>Pour ${esc(profil.plat || 'ce plat')}, je chercherais un ${Object.entries(profil.cible).sort((a, z) => z[1] - a[1])[0][0]} ${profil.regions[0] ? 'de ' + profil.regions[0] : ''}. L'occasion d'un achat ?</div>`;
+    zone.innerHTML = `<div class="vide"><div class="gros">${t('somm.rienCave')}</div>Pour ${esc(profil.plat || 'ce plat')}, je chercherais un ${Object.entries(profil.cible).sort((a, z) => z[1] - a[1])[0][0]} ${profil.regions[0] ? 'de ' + profil.regions[0] : ''}. L'occasion d'un achat ?</div>`;
     orbeAuRepos();
     return;
   }
@@ -1345,10 +1345,10 @@ async function lancerConseil(repas) {
 
   // Petite mise en scène
   if (!reduitMouvement()) {
-    statutOrbe('Le sommelier descend à la cave…');
+    statutOrbe(t('somm.chargement'));
     zone.innerHTML = '<div class="reco-squelette"><span class="photo-shimmer"></span></div>'.repeat(2);
     await attendre(600);
-    statutOrbe('Il remonte avec quelque chose…');
+    statutOrbe(t('somm.chargementRemonte'));
     await attendre(400);
   }
 
@@ -1356,13 +1356,13 @@ async function lancerConseil(repas) {
   brancherActionsReco(zone);
   if (apiKey) {
     zone.insertAdjacentHTML('beforeend',
-      `<button class="btn-discret" id="btn-approfondir" style="display:block;margin:10px auto 0">${ico('etincelles', 13)} Approfondir avec le Sommelier+</button>`);
+      `<button class="btn-discret" id="btn-approfondir" style="display:block;margin:10px auto 0">${ico('etincelles', 13)} ${t('somm.approfondir')}</button>`);
     $('#btn-approfondir').onclick = () => escaladerIA(`${repas} — détaille le service (température, carafage) et propose une alternative.`);
   }
   rendreHisto();
   // Compact la scène ; l'orbe passera en 'parle' puis 'repos' via dire()
   $('#orbe-scene').classList.add('compacte');
-  statutOrbe('Touchez le micro pour autre chose');
+  statutOrbe(t('somm.toucherMicro'));
   vibrer('succes');
   defilerVersResultats(zone);
 
@@ -1546,26 +1546,26 @@ function rendreAlertes() {
   let html = '';
 
   if (!basses.length && !urgentes.length && !aFinir.length && !epuisees.length) {
-    html = '<div class="vide"><div class="gros">Tout va bien à la cave</div>Créez des veilles ci-dessous pour être prévenu quand un segment s\'épuise.</div>';
+    html = `<div class="vide"><div class="gros">${t('alertes.toutVaBien')}</div>${t('alertes.creerVeilles')}</div>`;
   }
   aFinir.forEach((b) => {
     html += `<div class="alerte"><div>${ico('flacon', 18)}</div><div style="flex:1">
-      <div class="alerte-titre">À finir en priorité : ${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</div>
-      <div class="alerte-detail">Il ne reste que ${b.niveau} % de la bouteille — un spiritueux ouvert s'oxyde, finissez-la avant d'en ouvrir une autre.</div>
+      <div class="alerte-titre">${t('alertes.spiritAFinir').replace('{nom}', esc([b.domaine, b.nom].filter(Boolean).join(' ')))}</div>
+      <div class="alerte-detail">${t('alertes.spiritDetail')}</div>
     </div></div>`;
   });
   urgentes.forEach((b) => {
     html += `<div class="alerte"><div>⏳</div><div style="flex:1">
-      <div class="alerte-titre">${esc(b.nom)} ${b.millesime || ''} — à boire vite</div>
-      <div class="alerte-detail">Fin de fenêtre de garde ${b.gardeA}. Prévoyez une occasion (×${b.qty}).</div>
+      <div class="alerte-titre">${t('alertes.vinUrgent').replace('{nom}', esc(b.nom) + (b.millesime ? ' ' + b.millesime : ''))}</div>
+      <div class="alerte-detail">${t('alertes.vinUrgentDetail')}</div>
     </div></div>`;
   });
   basses.forEach(({ w, n }) => {
-    const lib = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || 'Référence') : w.valeur;
+    const lib = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || t('alertes.reference')) : w.valeur;
     const q = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || '') : `vin ${w.valeur}`;
     html += `<div class="alerte douce"><div>📉</div><div style="flex:1">
-      <div class="alerte-titre">Stock bas : ${esc(lib)}</div>
-      <div class="alerte-detail">${n} bouteille${n > 1 ? 's' : ''} restante${n > 1 ? 's' : ''} (seuil : ${w.seuil}).</div>
+      <div class="alerte-titre">${t('alertes.stockBas').replace('{lib}', esc(lib))}</div>
+      <div class="alerte-detail">${t('alertes.stockDetail').replace('{qty}', n).replace('{seuil}', w.seuil)}</div>
       <div class="liens-rachat">
         <a href="https://www.wine-searcher.com/find/${encodeURIComponent(q)}" target="_blank" rel="noopener">Wine-Searcher ↗</a>
         <a href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q + ' promo')}" target="_blank" rel="noopener">Promos ↗</a>
@@ -1574,8 +1574,8 @@ function rendreAlertes() {
   });
   epuisees.forEach((b) => {
     html += `<div class="alerte douce"><div>🫙</div><div style="flex:1">
-      <div class="alerte-titre">Épuisé : ${esc(b.nom)} ${b.millesime || ''}</div>
-      <div class="alerte-detail">Dernière sortie le ${(b.sorties || []).slice(-1)[0]?.date || '—'}. On rachète ?</div>
+      <div class="alerte-titre">${t('alertes.epuise').replace('{nom}', esc(b.nom) + (b.millesime ? ' ' + b.millesime : ''))}</div>
+      <div class="alerte-detail">${t('alertes.epuiseDetail').replace('{date}', (b.sorties || []).slice(-1)[0]?.date || '—')}</div>
       <div class="liens-rachat">${liensRachatHTML(b)}</div>
     </div></div>`;
   });
@@ -1585,13 +1585,13 @@ function rendreAlertes() {
   const { watches } = store.get();
   $('#liste-veilles').innerHTML = watches.length ? watches.map((w) => {
     const n = compterVeille(w, bottles);
-    const lib = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || '(référence supprimée)') : w.valeur;
+    const lib = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || t('alertes.refSupprimee')) : w.valeur;
     return `<div class="veille-item">
       <span>${{ region: '🗺️', millesime: '📅', reference: '🍾' }[w.type]} ${esc(lib)}</span>
       <span><span class="${n <= w.seuil ? 'bas' : 'ok'}">${n}</span> / seuil ${w.seuil}
       <button class="btn-discret" data-id="${w.id}" style="padding:2px 6px">✕</button></span>
     </div>`;
-  }).join('') : '<p style="color:var(--creme-45);font-size:13px">Aucune veille pour l\'instant.</p>';
+  }).join('') : `<p style="color:var(--creme-45);font-size:13px">${t('alertes.aucuneVeille')}</p>`;
   $('#liste-veilles').querySelectorAll('[data-id]').forEach((btn) => btn.onclick = () => {
     store.supprimerVeille(btn.dataset.id); rendreAlertes(); majBadgeAlertes();
   });
@@ -1606,7 +1606,7 @@ function majSlotVeille() {
   if (type === 'region') opts = [...new Set(bottles.map((b) => b.region))].sort().map((r) => `<option>${r}</option>`).join('') || REGIONS.map((r) => `<option>${r}</option>`).join('');
   if (type === 'millesime') opts = [...new Set(bottles.map((b) => b.millesime).filter(Boolean))].sort().map((m) => `<option>${m}</option>`).join('');
   if (type === 'reference') opts = bottles.map((b) => `<option value="${b.id}">${esc(b.nom)} ${b.millesime || ''}</option>`).join('');
-  $('#veille-valeur-slot').innerHTML = `<select id="veille-valeur">${opts || '<option value="">(rien en cave)</option>'}</select>`;
+  $('#veille-valeur-slot').innerHTML = `<select id="veille-valeur">${opts || `<option value="">${t('alertes.rienEnCave')}</option>`}</select>`;
 }
 
 function initAlertes() {
@@ -1614,9 +1614,9 @@ function initAlertes() {
   $('#forme-veille').onsubmit = (e) => {
     e.preventDefault();
     const valeur = $('#veille-valeur')?.value;
-    if (!valeur) return toast('Rien à veiller pour l\'instant');
+    if (!valeur) return toast(t('alertes.rienAVeiller'));
     store.ajouterVeille({ type: $('#veille-type').value, valeur, seuil: parseInt($('#veille-seuil').value) || 1 });
-    rendreAlertes(); majBadgeAlertes(); toast('Veille créée');
+    rendreAlertes(); majBadgeAlertes(); toast(t('alertes.toastVeille'));
   };
 }
 
@@ -1679,16 +1679,16 @@ function rendreStats() {
 
   $('#contenu-stats').innerHTML = `
     <div class="bandeau-valeur" style="margin-bottom:18px">
-      <div><div class="v" id="stat-nb">${nb}</div><div class="l">bouteilles</div></div>
-      <div id="cellule-valeur-stats" title="Toucher pour masquer/afficher"><div class="v" id="stat-valeur">${valeurTxt}</div><div class="l">valeur cave ${settings.valeurCachee ? '👁' : ''}</div></div>
-      <div><div class="v" id="stat-refs">${enCave.length}</div><div class="l">références</div></div>
+      <div><div class="v" id="stat-nb">${nb}</div><div class="l">${t('stats.bouteilles')}</div></div>
+      <div id="cellule-valeur-stats" title="Toucher pour masquer/afficher"><div class="v" id="stat-valeur">${valeurTxt}</div><div class="l">${t('stats.valeurCave')} ${settings.valeurCachee ? '👁' : ''}</div></div>
+      <div><div class="v" id="stat-refs">${enCave.length}</div><div class="l">${t('stats.references')}</div></div>
     </div>
-    <div class="stat-bloc"><h3 class="sous-titre">Par couleur</h3>${jauges(parGroupe(vins, 'couleur')) || '—'}</div>
-    <div class="stat-bloc"><h3 class="sous-titre">Par région</h3>${jauges(parGroupe(vins, 'region'))}</div>
-    <div class="stat-bloc"><h3 class="sous-titre">Pyramide des millésimes</h3>${jauges(parGroupe(vins, 'millesime').sort((a, z) => String(z[0]).localeCompare(String(a[0]))), true)}</div>
-    ${spirits.length ? `<div class="stat-bloc"><h3 class="sous-titre">Spiritueux par type</h3>${jauges(parGroupe(spirits, 'type'))}</div>` : ''}
-    <div class="stat-bloc"><h3 class="sous-titre">Dernières sorties</h3>
-      ${sorties.map((s) => `<div class="journal-item"><span>${ico('verre', 12)} ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || '<p style="color:var(--creme-45);font-size:13px">Aucune sortie enregistrée.</p>'}
+    <div class="stat-bloc"><h3 class="sous-titre">${t('stats.parCouleur')}</h3>${jauges(parGroupe(vins, 'couleur')) || '—'}</div>
+    <div class="stat-bloc"><h3 class="sous-titre">${t('stats.parRegion')}</h3>${jauges(parGroupe(vins, 'region'))}</div>
+    <div class="stat-bloc"><h3 class="sous-titre">${t('stats.pyramide')}</h3>${jauges(parGroupe(vins, 'millesime').sort((a, z) => String(z[0]).localeCompare(String(a[0]))), true)}</div>
+    ${spirits.length ? `<div class="stat-bloc"><h3 class="sous-titre">${t('stats.parType')}</h3>${jauges(parGroupe(spirits, 'type'))}</div>` : ''}
+    <div class="stat-bloc"><h3 class="sous-titre">${t('stats.dernieresSorties')}</h3>
+      ${sorties.map((s) => `<div class="journal-item"><span>${ico('verre', 12)} ${esc(s.nom)} ${s.millesime || ''}${s.occasion ? ` — <i>${esc(s.occasion)}</i>` : ''}</span><span class="quand">${s.date}</span></div>`).join('') || `<p style="color:var(--creme-45);font-size:13px">${t('stats.aucuneSortie')}</p>`}
     </div>`;
 
   $('#cellule-valeur-stats').onclick = () => {
@@ -1882,18 +1882,18 @@ function rendreProfil() {
     a.href = URL.createObjectURL(blob);
     a.download = `som-${new Date().toISOString().slice(0, 10)}.json`;
     a.click(); URL.revokeObjectURL(a.href);
-    toast('Sauvegarde téléchargée');
+    toast(t('profil.toastExport'));
   };
   $('#p-import').onclick = () => $('#p-input-import').click();
   $('#p-input-import').onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    try { store.importer(await f.text()); majAvatar(); rendreProfil(); toast('Cave importée !'); }
+    try { store.importer(await f.text()); majAvatar(); rendreProfil(); toast(t('profil.toastImport')); }
     catch (err) { toast(`Import impossible : ${err.message}`); }
   };
   $('#p-vider').onclick = () => {
-    if (confirm('Vraiment tout effacer ? Pensez à exporter avant.')) {
-      store.toutEffacer(); majAvatar(); rendreProfil(); toast('Cave réinitialisée');
+    if (confirm(t('profil.confirmEffacer'))) {
+      store.toutEffacer(); majAvatar(); rendreProfil(); toast(t('profil.toastEffacer'));
     }
   };
   // Bouton d'installation PWA
@@ -1935,5 +1935,5 @@ export function initUI() {
 
   const { bottles } = store.get();
   montrerEcran(bottles.length ? 'cave' : 'ajouter');
-  if (!bottles.length) toast('Bienvenue ! Commencez par dicter ou écrire vos bouteilles 🍷');
+  if (!bottles.length) toast(t('app.bienvenue'));
 }

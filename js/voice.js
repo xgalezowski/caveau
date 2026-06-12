@@ -1,6 +1,9 @@
 // Voix : dictée (Web Speech API) + synthèse vocale française.
 // Sur Chrome Android (Samsung), SpeechRecognition est dispo via le préfixe webkit.
 
+import store from './store.js';
+import { t } from './i18n.js';
+
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
 export const voixDisponible = !!SR;
@@ -11,8 +14,9 @@ export const voixDisponible = !!SR;
 // pour laisser à l'utilisateur le temps de finir sa pensée.
 export function dicter({ onResult, onEnd, onError, continu = false, silenceMs = 1800, dureeMax = 20000 }) {
   if (!SR) { onError?.('Reconnaissance vocale non disponible sur ce navigateur'); return null; }
+  const lang = store.get().settings.lang || 'fr';
   const rec = new SR();
-  rec.lang = 'fr-FR';
+  rec.lang = lang === 'en' ? 'en-US' : lang === 'es' ? 'es-PY' : 'fr-FR';
   rec.interimResults = true;
   rec.continuous = continu;
 
@@ -40,22 +44,27 @@ export function dicter({ onResult, onEnd, onError, continu = false, silenceMs = 
       minuteurSilence = setTimeout(arreter, silenceMs);
     }
   };
-  rec.onerror = (e) => onError?.(e.error === 'not-allowed' ? 'Micro refusé — autorise-le dans les réglages du navigateur' : `Erreur micro : ${e.error}`);
+  rec.onerror = (e) => onError?.(e.error === 'not-allowed' ? t('voix.erreurMicroRefuse') : `${t('voix.erreurMicro')} : ${e.error}`);
   rec.onend = () => { clearTimeout(minuteurSilence); clearTimeout(minuteurMax); onEnd?.(); };
   rec.start();
   return rec;
 }
 
-let voixFr = null;
-function trouverVoixFr() {
-  if (voixFr) return voixFr;
+let voixPreferee = null;
+let languePreferee = null;
+function trouverVoixLocale() {
+  const lang = store.get().settings.lang || 'fr';
+  const code = lang === 'en' ? 'en-US' : lang === 'es' ? 'es-PY' : 'fr-FR';
+  if (voixPreferee && languePreferee === code) return voixPreferee;
   const voix = speechSynthesis.getVoices();
-  voixFr = voix.find((v) => v.lang === 'fr-FR' && /enhanced|premium|google/i.test(v.name))
-        || voix.find((v) => v.lang.startsWith('fr')) || null;
-  return voixFr;
+  const prefPattern = lang === 'es' ? /natural|premium|google/i : /enhanced|premium|google/i;
+  voixPreferee = voix.find((v) => v.lang === code && prefPattern.test(v.name))
+        || voix.find((v) => v.lang.startsWith(lang)) || null;
+  languePreferee = code;
+  return voixPreferee;
 }
 if (typeof speechSynthesis !== 'undefined') {
-  speechSynthesis.onvoiceschanged = () => { voixFr = null; trouverVoixFr(); };
+  speechSynthesis.onvoiceschanged = () => { voixPreferee = null; trouverVoixLocale(); };
 }
 
 // Fait parler le sommelier (si la voix est activée dans les réglages).
@@ -66,10 +75,11 @@ function parlerNavigateur(texte) {
     if (typeof speechSynthesis === 'undefined') return fin();
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(texte);
-    u.lang = 'fr-FR';
+    const lang = store.get().settings.lang || 'fr';
+    u.lang = lang === 'en' ? 'en-US' : lang === 'es' ? 'es-PY' : 'fr-FR';
     u.rate = 1.02;
     u.pitch = 0.95;
-    const v = trouverVoixFr();
+    const v = trouverVoixLocale();
     if (v) u.voice = v;
     u.onend = fin;
     u.onerror = fin;
