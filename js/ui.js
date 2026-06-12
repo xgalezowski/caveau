@@ -171,7 +171,7 @@ function optionsRegion(selection, pays) {
 function optionsPays(selection) {
   const connus = [...new Set([...PAYS, ...store.get().bottles.map((b) => b.pays), selection])]
     .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
-  return connues.map((p) => `<option ${p === selection ? 'selected' : ''}>${esc(p)}</option>`).join('') +
+  return connus.map((p) => `<option ${p === selection ? 'selected' : ''}>${esc(p)}</option>`).join('') +
     `<option value="__autre">${t('select.autrePays')}</option>`;
 }
 // Branche les couples pays ↔ région d'un conteneur : « Autre… » crée une
@@ -1836,7 +1836,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
-      <p class="profil-version">Som' · v39</p>
+      <p class="profil-version">Som' · v40</p>
     </div>`;
 
   // — Identité —
