@@ -13,13 +13,15 @@ import { vibrer, transitionEcran } from './fx.js';
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
 // sinon repli sur la synthèse du navigateur. Pendant la lecture, l'encre
 // du Sommelier « articule » (état parle), puis se rendort.
-async function dire(texte) {
+// blobPrefetch : Blob audio déjà téléchargé (pré-chauffe Gemini) ou null.
+async function dire(texte, blobPrefetch = null) {
   const { voixActive, apiKey } = store.get().settings;
   if (!voixActive) return;
   const anime = ecranActif === 'sommelier' && orbe;
   if (anime) orbe.etatVers('parle');
+  const synth = apiKey ? (t) => synthVoixGemini(apiKey, t) : null;
   try {
-    await parler(texte, true, apiKey ? (t) => synthVoixGemini(apiKey, t) : null);
+    await parler(texte, true, blobPrefetch ? () => Promise.resolve(blobPrefetch) : synth);
   } finally {
     if (anime && orbe.etat === 'parle') orbe.etatVers('repos');
   }
@@ -1279,26 +1281,18 @@ async function lancerConseil(repas) {
   if (!enCave.length) return toast('Votre cave est vide — ajoutez des bouteilles !');
   pousserHisto(repas);
   majTranscript(repas);
-  const { apiKey } = store.get().settings;
+  const { apiKey, voixActive } = store.get().settings;
 
   // Question libre (budget, nombre de convives, conservation…) → IA directement
   if (apiKey && estQuestionLibre(repas)) return escaladerIA(repas);
 
-  // Petite mise en scène : le conseil mérite un temps de cave
   const zone = $('#resultats-sommelier');
   orbe?.etatVers('reflexion');
-  if (!reduitMouvement()) {
-    statutOrbe('Le sommelier descend à la cave…');
-    zone.innerHTML = '<div class="reco-squelette"><span class="photo-shimmer"></span></div>'.repeat(2);
-    await attendre(700);
-    statutOrbe('Il remonte avec quelque chose…');
-    await attendre(500);
-  }
 
+  // Calcul du résultat AVANT l'animation pour pré-chauffer le TTS pendant l'attente
   const { profil, choix } = recommander(repas, enCave, occasion, 3, undefined, budgetMax);
   if (!choix.length) {
     if (budgetMax) {
-      // peut-être seulement une affaire de budget : on vérifie sans plafond
       const sansPlafond = recommander(repas, enCave, occasion, 1);
       if (sansPlafond.choix.length) {
         zone.innerHTML = `<div class="vide"><div class="gros">Rien sous ${budgetMax} €…</div>Le ${esc(sansPlafond.choix[0].bottle.nom)} serait parfait — élargissez le budget d'un cran ?</div>`;
@@ -1306,10 +1300,26 @@ async function lancerConseil(repas) {
         return;
       }
     }
-    if (apiKey) return escaladerIA(repas); // rien en local : l'IA cherche mieux
+    if (apiKey) return escaladerIA(repas);
     zone.innerHTML = `<div class="vide"><div class="gros">Rien d'idéal en cave…</div>Pour ${esc(profil.plat || 'ce plat')}, je chercherais un ${Object.entries(profil.cible).sort((a, z) => z[1] - a[1])[0][0]} ${profil.regions[0] ? 'de ' + profil.regions[0] : ''}. L'occasion d'un achat ?</div>`;
     orbeAuRepos();
     return;
+  }
+
+  // Pré-chargement audio : la requête Gemini part pendant l'animation de cave
+  const texteAccord = argumentaire(choix[0], profil, 0);
+  const synthFn = apiKey ? (t) => synthVoixGemini(apiKey, t) : null;
+  const blobPromise = voixActive && synthFn
+    ? synthFn(texteAccord).catch(() => null)
+    : Promise.resolve(null);
+
+  // Petite mise en scène
+  if (!reduitMouvement()) {
+    statutOrbe('Le sommelier descend à la cave…');
+    zone.innerHTML = '<div class="reco-squelette"><span class="photo-shimmer"></span></div>'.repeat(2);
+    await attendre(600);
+    statutOrbe('Il remonte avec quelque chose…');
+    await attendre(400);
   }
 
   zone.innerHTML = choix.map((c, i) => carteReco(c, i, profil)).join('');
@@ -1320,12 +1330,18 @@ async function lancerConseil(repas) {
     $('#btn-approfondir').onclick = () => escaladerIA(`${repas} — détaille le service (température, carafage) et propose une alternative.`);
   }
   rendreHisto();
-  orbeAuRepos();
+  // Compact la scène ; l'orbe passera en 'parle' puis 'repos' via dire()
+  $('#orbe-scene').classList.add('compacte');
+  statutOrbe('Touchez le micro pour autre chose');
   vibrer('succes');
-  // on défile vers les cartes quand la condensation de la scène est VRAIMENT
-  // finie (transitionend) — un minuteur seul mesure une cible encore mouvante
   defilerVersResultats(zone);
-  dire(argumentaire(choix[0], profil, 0));
+
+  // Voix : on joue dès que possible — le blob Gemini est souvent déjà prêt
+  if (voixActive) {
+    blobPromise.then((blob) => dire(texteAccord, blob));
+  } else {
+    orbe?.etatVers('repos');
+  }
 }
 
 /* Amène les cartes sous les yeux, quoi qu'il arrive : boucle de convergence

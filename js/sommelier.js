@@ -195,10 +195,13 @@ export function argumentaire(choix, profil, rang = 0) {
   ];
   let phrase = accroches[Math.min(rang, 2)];
 
-  // l'identité du vin : cépages puis arômes typiques
-  if (cepages) phrase += ` ${rang === 1 ? 'Son' : 'Le'} ${cepages} y parle ${carac ? `sur des notes de ${carac.notes}` : 'avec franchise'}`;
-  else if (carac) phrase += ` On y retrouve ${carac.notes}`;
-  if (cepages || carac) phrase += rang === 2 ? ' — exactement le grain de folie qu\'il faut ici.' : ', taillé pour la table de ce soir.';
+  // l'identité du vin : cépages puis arômes typiques.
+  // Si la bouteille a sa propre description (IA ou saisie), on n'invente pas
+  // de notes génériques qui contrediraient ce que la fiche affiche.
+  const notesOk = !b.description && carac;
+  if (cepages) phrase += ` ${rang === 1 ? 'Son' : 'Le'} ${cepages} y parle ${notesOk ? `sur des notes de ${carac.notes}` : 'avec son caractère propre'}`;
+  else if (notesOk) phrase += ` On y retrouve ${carac.notes}`;
+  if (cepages || notesOk) phrase += rang === 2 ? ' — exactement le grain de folie qu\'il faut ici.' : ', taillé pour la table de ce soir.';
 
   // une raison du moteur — décalée selon le rang pour que deux cartes
   // voisines ne répètent pas le même argument
