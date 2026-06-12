@@ -1836,7 +1836,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
-      <p class="profil-version">Som' · v38</p>
+      <p class="profil-version">Som' · v39</p>
     </div>`;
 
   // — Identité —
