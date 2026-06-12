@@ -7,7 +7,7 @@ import { recommander, surprise, argumentaire, pctAccord } from './sommelier.js';
 import { creerOrbe } from './orbe-fluide.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
 import { dicter, parler, voixDisponible } from './voice.js';
-import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille } from './ai.js';
+import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille, argumenterRecos } from './ai.js';
 import { vibrer, transitionEcran } from './fx.js';
 
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
@@ -1306,11 +1306,22 @@ async function lancerConseil(repas) {
     return;
   }
 
-  // Pré-chargement audio : la requête Gemini part pendant l'animation de cave
-  const texteAccord = argumentaire(choix[0], profil, 0);
+  // Argumentaires locaux instantanés (affichés tout de suite, sans attendre
+  // le réseau). Ils servent aussi de repli si l'IA échoue.
+  const argLocaux = choix.map((c, i) => argumentaire(c, profil, i));
+
+  // En parallèle, dès maintenant : l'IA rédige des argumentaires personnalisés
+  // (vraie prise de position, n°1 vs n°2 vs n°3). Ils remplaceront le texte des
+  // cartes dès qu'ils arrivent. Le repli local reste affiché si ça échoue.
+  const recosIA = apiKey
+    ? argumenterRecos(apiKey, repas, occasion, choix, budgetMax).catch(() => null)
+    : Promise.resolve(null);
+
+  // Pré-chargement audio du n°1 (texte local) : la requête TTS part pendant
+  // l'animation → voix quasi instantanée à l'affichage des cartes.
   const synthFn = apiKey ? (t) => synthVoixGemini(apiKey, t) : null;
   const blobPromise = voixActive && synthFn
-    ? synthFn(texteAccord).catch(() => null)
+    ? synthFn(argLocaux[0]).catch(() => null)
     : Promise.resolve(null);
 
   // Petite mise en scène
@@ -1338,10 +1349,24 @@ async function lancerConseil(repas) {
 
   // Voix : on joue dès que possible — le blob Gemini est souvent déjà prêt
   if (voixActive) {
-    blobPromise.then((blob) => dire(texteAccord, blob));
+    blobPromise.then((blob) => dire(argLocaux[0], blob));
   } else {
     orbe?.etatVers('repos');
   }
+
+  // Quand les argumentaires IA arrivent, on remplace le texte de chaque carte
+  // en douceur (fondu). La voix a déjà donné le ton ; le texte affine.
+  recosIA.then((textes) => {
+    if (!textes) return;
+    const cartes = $('#resultats-sommelier').querySelectorAll('.reco-texte');
+    textes.forEach((txt, i) => {
+      const el = cartes[i];
+      if (!el || !txt) return;
+      el.style.transition = 'opacity .25s';
+      el.style.opacity = '0';
+      setTimeout(() => { el.textContent = txt; el.style.opacity = '1'; }, 250);
+    });
+  });
 }
 
 /* Amène les cartes sous les yeux, quoi qu'il arrive : boucle de convergence

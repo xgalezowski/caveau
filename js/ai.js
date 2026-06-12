@@ -251,6 +251,64 @@ export async function sommelierPlus(apiKey, question, bottles) {
   return appelerGemini(apiKey, [{ text: question }], system);
 }
 
+/* ─── Argumentaires de recommandation : 3 cartes, vraie prise de position ───
+   On donne au modèle le repas, l'occasion et les 3 vins présélectionnés par
+   le moteur local (classés). Il justifie LE classement : pourquoi la n°1 est
+   la meilleure, pourquoi la n°2 talonne, pourquoi la n°3 est le pari.
+   Renvoie un tableau de 3 chaînes (index = rang). Lève en cas d'échec :
+   l'appelant retombe alors sur les argumentaires locaux.                    */
+
+const OCCASION_LABEL = { semaine: 'un dîner de semaine, simple', weekend: 'un repas du week-end, convivial', grande: 'une grande occasion, où l\'on veut marquer le coup' };
+
+export async function argumenterRecos(apiKey, repas, occasion, choix, budgetMax = null) {
+  const vins = choix.map((c, i) => {
+    const b = c.bottle;
+    return {
+      rang: i + 1,
+      nom: [b.nom, b.millesime].filter(Boolean).join(' '),
+      region: b.region || null,
+      couleur: b.couleur || null,
+      prix: b.prix ?? null,
+      cepages: b.cepages || null,
+      maturite: c.maturite?.code || null,
+      fiche: b.description ? b.description.slice(0, 260) : null,
+    };
+  });
+
+  const system =
+    'Tu es un sommelier d\'exception : passion, culture, et surtout une vraie ' +
+    'prise de position. On te confie un repas, une occasion, et 3 vins de la cave ' +
+    'du client, déjà présélectionnés et classés par un moteur d\'accord (le n°1 est ' +
+    'jugé le meilleur). Ton rôle : DÉFENDRE ce classement avec conviction, en ' +
+    'français, comme si tu parlais à un ami à table.\n\n' +
+    'Règles ABSOLUES :\n' +
+    '- Chaque argumentaire est UNIQUE — aucune tournure ni formule recyclée d\'une carte à l\'autre.\n' +
+    '- n°1 : explique pourquoi C\'EST LE meilleur accord, précisément (la rencontre exacte entre le plat et ce vin). Assume, tranche.\n' +
+    '- n°2 : pourquoi elle talonne la première, ce qu\'elle apporte de DIFFÉRENT, dans quel cas la préférer.\n' +
+    '- n°3 : le pari, l\'audace — pourquoi l\'oser, ce qu\'elle a d\'inattendu.\n' +
+    '- Sois concret : cépages, structure, ce que ça donne en bouche AVEC ce plat. Termine chacune par un conseil de service court (température, carafage).\n' +
+    '- Si une "fiche" est donnée pour un vin, appuie-toi dessus pour les arômes — n\'invente JAMAIS de notes qui la contrediraient.\n' +
+    '- 40 à 70 mots par argumentaire. Pas de markdown, pas d\'émoji, pas de titre — juste le paragraphe.\n' +
+    'Réponds UNIQUEMENT en JSON : {"recos": ["texte n°1", "texte n°2", "texte n°3"]} (autant d\'entrées que de vins fournis).';
+
+  const demande = JSON.stringify({
+    repas,
+    occasion: OCCASION_LABEL[occasion] || occasion,
+    budget_max_eur: budgetMax || null,
+    vins,
+  });
+
+  let texte;
+  if (fournisseur(apiKey) === 'anthropic') {
+    texte = await appelerClaude(apiKey, [{ role: 'user', content: demande }], system, 900);
+  } else {
+    texte = await appelerGemini(apiKey, [{ text: demande }], system);
+  }
+  const r = extraireJSON(texte);
+  if (!Array.isArray(r.recos) || !r.recos.length) throw new Error('Argumentaires illisibles');
+  return r.recos.map((s) => String(s || '').trim()).filter(Boolean);
+}
+
 /* ─── Équivalents de rachat ─── */
 
 export async function equivalents(apiKey, bottle) {
