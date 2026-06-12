@@ -476,6 +476,7 @@ async function genererEtAfficher(id) {
 }
 
 function ouvrirFiche(id) {
+  $('#feuille').dataset.courant = id;
   const b = store.get().bottles.find((x) => x.id === id);
   if (!b) return;
   if (b.categorie === 'spiritueux') { ouvrirFicheSpirit(b); return; }
@@ -588,6 +589,7 @@ function ouvrirFiche(id) {
 
 function ouvrirFicheSpirit(b) {
   const id = b.id;
+  $('#feuille').dataset.courant = id;
   $('#feuille-contenu').innerHTML = `
     <h3>${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</h3>
     <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.type || t('tab.spiritueux'))}
@@ -789,6 +791,103 @@ function brancherGlissementFeuille() {
     }
     y0 = null;
   });
+}
+
+function brancherGlissementFicheHori() {
+  const contenu = $('#feuille-contenu');
+  let x0 = null, y0 = null, dx = 0, dy = 0, swipeEnCours = false, swipeHori = false;
+
+  contenu.addEventListener('touchstart', (e) => {
+    // Ne pas interférer avec les sliders
+    if (e.target.tagName === 'INPUT' && e.target.type === 'range') return;
+    x0 = e.touches[0].clientX;
+    y0 = e.touches[0].clientY;
+    dx = dy = 0;
+    swipeEnCours = true;
+    swipeHori = false;
+    contenu.style.transition = 'none';
+  }, { passive: true });
+
+  contenu.addEventListener('touchmove', (e) => {
+    if (!swipeEnCours || x0 == null) return;
+    const x = e.touches[0].clientX;
+    const y = e.touches[0].clientY;
+    dx = x - x0;
+    dy = y - y0;
+    
+    if (!swipeHori && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+      swipeHori = true;
+    }
+    
+    if (swipeHori) {
+      const affiche = dx > 0 ? Math.pow(dx, 0.85) : -Math.pow(-dx, 0.85);
+      contenu.style.transform = `translateX(${affiche}px)`;
+    }
+  }, { passive: true });
+
+  contenu.addEventListener('touchend', () => {
+    if (!swipeEnCours || x0 == null) return;
+    swipeEnCours = false;
+    if (swipeHori) {
+      const lancee = Math.abs(dx) > 80;
+      if (lancee) {
+        const direction = dx > 0 ? -1 : 1; // dx>0: droite (précédent), dx<0: gauche (suivant)
+        const idCourant = $('#feuille').dataset.courant;
+        const voisinId = getVoisinId(idCourant, direction);
+        
+        if (voisinId) {
+          vibrer('tic');
+          glisserFicheVers(voisinId, direction);
+        } else {
+          annulerGlissement();
+        }
+      } else {
+        annulerGlissement();
+      }
+    }
+    x0 = y0 = null;
+  });
+  
+  function annulerGlissement() {
+    contenu.style.transition = 'transform .3s cubic-bezier(.18, 1.35, .35, 1)';
+    contenu.style.transform = '';
+  }
+}
+
+function getVoisinId(courantId, dir) {
+  const elements = Array.from(document.querySelectorAll('.carte, .reco, .item-hist'))
+    .filter(el => {
+      const p = el.closest('[hidden]');
+      return !p && el.style.display !== 'none';
+    });
+  const index = elements.findIndex(e => e.dataset.id === courantId);
+  if (index === -1) return null;
+  const voisin = elements[index + dir];
+  return voisin ? voisin.dataset.id : null;
+}
+
+function glisserFicheVers(id, direction) {
+  const contenu = $('#feuille-contenu');
+  contenu.style.transition = 'transform 0.2s, opacity 0.2s';
+  contenu.style.transform = `translateX(${direction * -100}px)`;
+  contenu.style.opacity = '0';
+  
+  setTimeout(() => {
+    ouvrirFiche(id);
+    contenu.style.transition = 'none';
+    contenu.style.transform = `translateX(${direction * 100}px)`;
+    void contenu.offsetWidth; // force reflow
+    
+    contenu.style.transition = 'transform 0.2s cubic-bezier(.18, 1.35, .35, 1), opacity 0.2s';
+    contenu.style.transform = 'translateX(0)';
+    contenu.style.opacity = '1';
+    
+    setTimeout(() => {
+      contenu.style.transition = '';
+      contenu.style.transform = '';
+      contenu.style.opacity = '';
+    }, 200);
+  }, 150);
 }
 
 function liensRachatHTML(b) {
@@ -1837,7 +1936,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
-      <p class="profil-version">Som' · v42</p>
+      <p class="profil-version">Som' · v43</p>
     </div>`;
 
   // — Identité —
@@ -1931,6 +2030,7 @@ export function initUI() {
   $('#voile').onclick = () => montrerFeuille(false);
   $('#feuille-fermer').onclick = () => montrerFeuille(false);
   brancherGlissementFeuille();
+  brancherGlissementFicheHori();
   $('#recherche').oninput = rendreCave;
   $('#categorie-cave').querySelectorAll('.seg').forEach((s) => s.onclick = () => {
     catCave = s.dataset.cat;

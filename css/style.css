@@ -829,6 +829,9 @@ html[data-theme="clair"] .outil-pilule { background: rgba(252, 246, 233, .55); }
   padding: 12px 0 10px; margin: 0 -18px 4px;
   background: rgba(31, 19, 24, .92); cursor: grab; touch-action: none;
 }
+#feuille-contenu {
+  touch-action: pan-y;
+}
 .poignee-barre { width: 44px; height: 5px; border-radius: 3px; background: var(--trait); }
 .feuille-fermer {
   position: absolute; right: 14px; top: 8px;
