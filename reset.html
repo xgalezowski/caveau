@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mise à jour Som'</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #12060d; color: #f3ead8;
+         display: flex; flex-direction: column; align-items: center; justify-content: center;
+         min-height: 100dvh; margin: 0; padding: 24px; text-align: center; gap: 16px; }
+  h1 { font-size: 22px; margin: 0; }
+  p  { font-size: 15px; color: rgba(243,234,216,.6); margin: 0; line-height: 1.5; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+         background: #c9a227; animation: pulse 1s infinite alternate; margin: 0 3px; }
+  .dot:nth-child(2) { animation-delay: .2s; }
+  .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes pulse { to { opacity: .2; } }
+  .ok { font-size: 40px; display: none; }
+  a  { color: #c9a227; font-size: 15px; }
+</style>
+</head>
+<body>
+<h1>Mise à jour en cours…</h1>
+<p>Nettoyage du cache et installation de la dernière version.</p>
+<div><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+<div class="ok" id="ok">✓</div>
+<p id="msg"></p>
+<script>
+(async () => {
+  const msg = document.getElementById('msg');
+  const ok  = document.getElementById('ok');
+  try {
+    // 1. Vider tous les caches SW
+    const noms = await caches.keys();
+    await Promise.all(noms.map(n => caches.delete(n)));
+
+    // 2. Dé-enregistrer tous les service workers
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+
+    ok.style.display = 'block';
+    msg.textContent = 'Cache vidé. Redirection…';
+    // 3. Recharger l'app (propre, sans SW, qui va se réinstaller en v35)
+    setTimeout(() => { location.replace('./'); }, 1200);
+  } catch(e) {
+    msg.textContent = 'Erreur : ' + e.message + ' — ' +
+      'Essaie dans Chrome : Paramètres → Confidentialité → Vider le cache.';
+  }
+})();
+</script>
+</body>
+</html>

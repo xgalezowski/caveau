@@ -1,5 +1,5 @@
 // Service worker : cache-first pour un fonctionnement 100 % hors-ligne.
-const CACHE = 'caveau-v35';
+const CACHE = 'caveau-v36';
 const ASSETS = [
   './', 'index.html', 'css/style.css',
   'js/app.js', 'js/ui.js', 'js/store.js', 'js/parser.js', 'js/sommelier.js',
@@ -33,8 +33,10 @@ self.addEventListener('message', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Jamais de cache pour l'API Claude
+  // Jamais de cache pour l'API Claude ni pour la page de reset (doit toujours
+  // aller au réseau pour pouvoir débloquer un cache corrompu).
   if (e.request.url.includes('api.anthropic.com')) return;
+  if (e.request.url.includes('reset.html')) return;
   e.respondWith(
     caches.match(e.request).then((hit) => hit ||
       fetch(e.request).then((rep) => {
