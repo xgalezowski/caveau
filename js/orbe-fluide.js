@@ -34,15 +34,15 @@ export function creerOrbe(el) {
     sim = creerSimulation(canvas, {
       TRANSPARENT: true,
       PALETTE,
-      DENSITY_DISSIPATION: 1.25,  // l'encre s'estompe doucement
-      VELOCITY_DISSIPATION: 0.5,
-      CURL: 38,                   // tourbillons vivants
-      SPLAT_RADIUS: 0.26,
-      SPLAT_FORCE: 5400,
+      DENSITY_DISSIPATION: 0.95,  // l'encre s'estompe plus doucement (plus fluide)
+      VELOCITY_DISSIPATION: 0.35, // mouvement moins abrupt
+      CURL: 22,                   // tourbillons plus amples et calmes
+      SPLAT_RADIUS: 0.28,
+      SPLAT_FORCE: 2800,          // force réduite pour éviter les pulsations violentes
       BLOOM: true,
-      BLOOM_INTENSITY: 0.6,  // au-delà, les cœurs d'encre virent au blanc
+      BLOOM_INTENSITY: 0.45,      // éclat plus raffiné et moins agressif
       SUNRAYS: false,
-      COLOR_UPDATE_SPEED: 6,
+      COLOR_UPDATE_SPEED: 4,      // fondus de couleurs plus doux
       PAUSED: reduitMouvement(),  // mouvement réduit : encre figée du départ
       // debug : les captures d'écran headless exigent un tampon préservé
       PRESERVE: localStorage.getItem('caveau:debug-fluide') === '1',
@@ -74,18 +74,18 @@ export function creerOrbe(el) {
   }
 
   function goutteDouce() {
-    eclat(alea(0.35, 0.65), alea(0.4, 0.68), alea(-120, 120), alea(-160, 60), 1.35);
+    eclat(alea(0.35, 0.65), alea(0.4, 0.68), alea(-60, 60), alea(-100, 30), 0.8);
   }
 
   function rafaleVoix(force) {
-    const n = 3 + Math.round(force * 3);
+    const n = 2 + Math.round(force * 2);
     for (let i = 0; i < n; i++) {
       const a = alea(0, Math.PI * 2);
-      const v = 400 + force * 950;
+      const v = 200 + force * 450;
       eclat(
-        0.5 + Math.cos(a) * 0.07, 0.52 + Math.sin(a) * 0.07,
+        0.5 + Math.cos(a) * 0.08, 0.52 + Math.sin(a) * 0.08,
         Math.cos(a) * v, Math.sin(a) * v,
-        1.5 + force * 1.1
+        1.0 + force * 0.6
       );
     }
   }
@@ -110,17 +110,17 @@ export function creerOrbe(el) {
 
     if (etatCourant === 'reflexion') {
       // vortex entretenu : éclats tangentiels sur un cercle
-      angleVortex += 0.85;
+      angleVortex += 0.55;
       const r = 0.20;
       const x = 0.5 + Math.cos(angleVortex) * r;
       const y = 0.52 + Math.sin(angleVortex) * r;
-      eclat(x, y, -Math.sin(angleVortex) * 480, Math.cos(angleVortex) * 480, 0.85);
+      eclat(x, y, -Math.sin(angleVortex) * 220, Math.cos(angleVortex) * 220, 0.45);
     }
 
     if (etatCourant === 'parle' && horloge % 3 === 0) {
       // la matière articule : pulsations alternées au centre
       const haut = (horloge / 3) % 2 === 0;
-      eclat(0.5, 0.52, alea(-140, 140), haut ? 320 : -320, 0.9);
+      eclat(0.5, 0.52, alea(-80, 80), haut ? 160 : -160, 0.55);
     }
   }, 150);
 
@@ -172,12 +172,12 @@ export function creerOrbe(el) {
       const vague = (n) => {
         sim.config.DORMIR = false;
         for (let i = 0; i < n; i++) {
-          eclat(alea(0.2, 0.8), alea(0.25, 0.75), alea(-520, 520), alea(-520, 520), 1.8);
+          eclat(alea(0.3, 0.7), alea(0.35, 0.65), alea(-250, 250), alea(-250, 250), 1.2);
         }
       };
-      vague(4);
-      setTimeout(() => vague(3), 380);
-      setTimeout(() => { sim.config.DORMIR = false; goutteDouce(); goutteDouce(); }, 850);
+      vague(3);
+      setTimeout(() => vague(2), 380);
+      setTimeout(() => { sim.config.DORMIR = false; goutteDouce(); }, 850);
     },
 
     /* La reconnaissance vient de transcrire : la matière encaisse l'éclat. */
