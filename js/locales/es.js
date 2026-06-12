@@ -3,7 +3,7 @@ export default {
   'nav.cave': 'Bodega',
   'nav.ajouter': 'Agregar',
   'nav.sommelier': 'Sommelier',
-  'nav.alertes': 'Alertas',
+  'nav.alertes': 'Radar',
   'nav.stats': 'Estadísticas',
 
   // ── App identity

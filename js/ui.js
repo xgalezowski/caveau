@@ -1660,38 +1660,35 @@ function rendreAlertes() {
   if (!basses.length && !urgentes.length && !aFinir.length && !epuisees.length) {
     html = `<div class="vide"><div class="gros">${t('alertes.toutVaBien')}</div>${t('alertes.creerVeilles')}</div>`;
   }
-  aFinir.forEach((b) => {
-    html += `<div class="alerte"><div>${ico('flacon', 18)}</div><div style="flex:1">
-      <div class="alerte-titre">${t('alertes.spiritAFinir').replace('{nom}', esc([b.domaine, b.nom].filter(Boolean).join(' ')))}</div>
-      <div class="alerte-detail">${t('alertes.spiritDetail')}</div>
-    </div></div>`;
-  });
-  urgentes.forEach((b) => {
-    html += `<div class="alerte"><div>⏳</div><div style="flex:1">
-      <div class="alerte-titre">${t('alertes.vinUrgent').replace('{nom}', esc(b.nom) + (b.millesime ? ' ' + b.millesime : ''))}</div>
-      <div class="alerte-detail">${t('alertes.vinUrgentDetail')}</div>
-    </div></div>`;
-  });
-  basses.forEach(({ w, n }) => {
-    const lib = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || t('alertes.reference')) : w.valeur;
-    const q = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || '') : `vin ${w.valeur}`;
-    html += `<div class="alerte douce"><div>📉</div><div style="flex:1">
-      <div class="alerte-titre">${t('alertes.stockBas').replace('{lib}', esc(lib))}</div>
-      <div class="alerte-detail">${t('alertes.stockDetail').replace('{qty}', n).replace('{seuil}', w.seuil)}</div>
-      <div class="liens-rachat">
-        <a href="https://www.wine-searcher.com/find/${encodeURIComponent(q)}" target="_blank" rel="noopener">Wine-Searcher ↗</a>
-        <a href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q + ' promo')}" target="_blank" rel="noopener">Promos ↗</a>
-      </div>
-    </div></div>`;
-  });
-  epuisees.forEach((b) => {
-    html += `<div class="alerte douce"><div>🫙</div><div style="flex:1">
-      <div class="alerte-titre">${t('alertes.epuise').replace('{nom}', esc(b.nom) + (b.millesime ? ' ' + b.millesime : ''))}</div>
-      <div class="alerte-detail">${t('alertes.epuiseDetail').replace('{date}', (b.sorties || []).slice(-1)[0]?.date || '—')}</div>
-      <div class="liens-rachat">${liensRachatHTML(b)}</div>
-    </div></div>`;
-  });
+  
+  const aBoire = [...urgentes, ...aFinir];
+  if (aBoire.length) {
+    html += `<div class="groupe-titre" style="margin-top:0">${t('alertes.groupeABoire')}</div>` + aBoire.map(carteHTML).join('');
+  }
+  
+  if (epuisees.length) {
+    html += `<div class="groupe-titre">${t('alertes.groupeEpuisees')}</div>` + epuisees.map(carteHTML).join('');
+  }
+  
+  if (basses.length) {
+    html += `<div class="groupe-titre">${t('alertes.groupeStocksBas')}</div>`;
+    basses.forEach(({ w, n }) => {
+      const lib = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || t('alertes.reference')) : w.valeur;
+      const q = w.type === 'reference' ? (bottles.find((b) => b.id === w.valeur)?.nom || '') : `vin ${w.valeur}`;
+      html += `<div class="alerte douce"><div style="flex:1">
+        <div class="alerte-titre">${t('alertes.stockBas').replace('{lib}', esc(lib))}</div>
+        <div class="alerte-detail">${t('alertes.stockDetail').replace('{qty}', n).replace('{seuil}', w.seuil)}</div>
+        <div class="liens-rachat">
+          <a href="https://www.wine-searcher.com/find/${encodeURIComponent(q)}" target="_blank" rel="noopener">Wine-Searcher ↗</a>
+          <a href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q + ' promo')}" target="_blank" rel="noopener">Promos ↗</a>
+        </div>
+      </div></div>`;
+    });
+  }
+
   $('#liste-alertes').innerHTML = html;
+  cascade($('#liste-alertes'));
+  $('#liste-alertes').querySelectorAll('.carte').forEach((c) => c.onclick = () => ouvrirFiche(c.dataset.id));
 
   // Liste des veilles
   const { watches } = store.get();
@@ -1936,7 +1933,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
-      <p class="profil-version">Som' · v43</p>
+      <p class="profil-version">Som' · v44</p>
     </div>`;
 
   // — Identité —

@@ -3,7 +3,7 @@ export default {
   'nav.cave': 'Cellar',
   'nav.ajouter': 'Add',
   'nav.sommelier': 'Sommelier',
-  'nav.alertes': 'Alerts',
+  'nav.alertes': 'Radar',
   'nav.stats': 'Stats',
 
   // ── App identity
@@ -256,6 +256,9 @@ export default {
   'alertes.vinUrgentDetail': 'End of drinking window, don\'t miss it.',
   'alertes.stockBas': 'Low stock: {lib}',
   'alertes.stockDetail': '{qty} bottle(s) left (threshold: {seuil})',
+  'alertes.groupeABoire': '⚡ Drink priority',
+  'alertes.groupeEpuisees': '🫙 Out of stock',
+  'alertes.groupeStocksBas': '📉 Low stock',
   'alertes.epuise': 'Out of stock: {nom}',
   'alertes.epuiseDetail': 'Last opened on {date}. Time to restock?',
   'alertes.aucuneVeille': 'No alerts yet.',
