@@ -95,7 +95,10 @@ export async function parler(texte, actif = true, synthGemini = null) {
   tairetout();
   if (synthGemini) {
     try {
-      const blob = await synthGemini(texte);
+      const blob = await Promise.race([
+        synthGemini(texte),
+        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 800))
+      ]);
       if (blob) {
         const url = URL.createObjectURL(blob);
         audioCourant = new Audio(url);
@@ -107,7 +110,9 @@ export async function parler(texte, actif = true, synthGemini = null) {
         return;
       }
     } catch (e) {
-      console.warn('Voix Gemini indisponible, repli navigateur', e);
+      if (e.message !== 'timeout') {
+        console.warn('Voix Gemini indisponible, repli navigateur', e);
+      }
     }
   }
   await parlerNavigateur(texte);

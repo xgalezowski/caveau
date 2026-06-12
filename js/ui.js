@@ -14,15 +14,15 @@ import { t, getLang } from './i18n.js';
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
 // sinon repli sur la synthèse du navigateur. Pendant la lecture, l'encre
 // du Sommelier « articule » (état parle), puis se rendort.
-// blobPrefetch : Blob audio déjà téléchargé (pré-chauffe Gemini) ou null.
-async function dire(texte, blobPrefetch = null) {
+// promisePrefetch : Promise<Blob> déjà lancée (pré-chauffe Gemini) ou null.
+async function dire(texte, promisePrefetch = null) {
   const { voixActive, apiKey } = store.get().settings;
   if (!voixActive) return;
   const anime = ecranActif === 'sommelier' && orbe;
   if (anime) orbe.etatVers('parle');
-  const synth = apiKey ? (t) => synthVoixGemini(apiKey, t) : null;
+  const synth = promisePrefetch ? () => promisePrefetch : (apiKey ? (t) => synthVoixGemini(apiKey, t) : null);
   try {
-    await parler(texte, true, blobPrefetch ? () => Promise.resolve(blobPrefetch) : synth);
+    await parler(texte, true, synth);
   } finally {
     if (anime && orbe.etat === 'parle') orbe.etatVers('repos');
   }
@@ -1376,9 +1376,11 @@ async function lancerConseil(repas) {
   vibrer('succes');
   defilerVersResultats(zone);
 
-  // Voix : on joue dès que possible — le blob Gemini est souvent déjà prêt
+  // Voix : on joue dès que possible.
+  // On passe la promesse directement à dire() qui va faire un Promise.race
+  // avec un timeout pour s'assurer que la voix démarre très vite.
   if (voixActive) {
-    blobPromise.then((blob) => dire(argLocaux[0], blob));
+    dire(argLocaux[0], blobPromise);
   } else {
     orbe?.etatVers('repos');
   }
