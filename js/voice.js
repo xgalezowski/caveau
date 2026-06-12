@@ -21,11 +21,19 @@ export function dicter({ onResult, onEnd, onError, continu = false, silenceMs = 
   const arreter = () => { try { rec.stop(); } catch { } };
   if (continu) minuteurMax = setTimeout(arreter, dureeMax); // garde-fou
 
+  // Chrome Android RELIVRE les segments déjà reçus (bug connu du mode
+  // continu) : on accumule les segments FINAUX par leur index — chacun ne
+  // compte qu'une fois — et on n'ajoute que l'hypothèse en cours à la fin.
+  const finaux = [];
   rec.onresult = (e) => {
-    let texte = '';
-    let final = false;
-    for (const res of e.results) { texte += res[0].transcript; if (res.isFinal) final = true; }
-    onResult?.(texte.trim(), final);
+    let enCours = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (res.isFinal) finaux[i] = res[0].transcript;
+      else enCours += res[0].transcript;
+    }
+    const texte = `${finaux.filter(Boolean).join(' ')} ${enCours}`.replace(/\s+/g, ' ').trim();
+    onResult?.(texte, false);
     if (continu) {
       // chaque nouveau mot repousse la fin : on ne conclut qu'au vrai silence
       clearTimeout(minuteurSilence);

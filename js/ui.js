@@ -1326,28 +1326,29 @@ async function lancerConseil(repas) {
   dire(argumentaire(choix[0], profil, 0));
 }
 
-/* Amène les cartes sous les yeux une fois la scène condensée. */
+/* Amène les cartes sous les yeux, quoi qu'il arrive : boucle de convergence
+   qui corrige la position toutes les 180 ms jusqu'à stabilité (la scène se
+   condense, dvh fluctue, la barre du navigateur bouge — aucun instant unique
+   n'est fiable). S'arrête dès que c'est calé, ou dès que l'utilisateur touche
+   l'écran : sa main reprend toujours la priorité. */
 function defilerVersResultats(zone) {
-  const scene = $('#orbe-scene');
   const MARGE = 64; // l'en-tête reste visible au-dessus de la première carte
-  let fait = false;
-  const viser = () => zone.getBoundingClientRect().top + window.scrollY - MARGE;
-  const defiler = () => {
-    if (fait) return;
-    fait = true;
-    window.scrollTo({ top: viser(), behavior: reduitMouvement() ? 'auto' : 'smooth' });
-    // correction différée : si la cible a bougé sous le scroll (transition
-    // tardive, clavier qui se replie…), on réajuste discrètement
-    setTimeout(() => {
-      if (Math.abs(zone.getBoundingClientRect().top - MARGE) > 28) {
-        window.scrollTo({ top: viser(), behavior: 'auto' });
-      }
-    }, 750);
+  let tours = 0;
+  let stables = 0;
+  const arreter = () => {
+    clearInterval(boucle);
+    window.removeEventListener('touchstart', arreter);
+    window.removeEventListener('wheel', arreter);
   };
-  scene.addEventListener('transitionend', (e) => {
-    if (e.propertyName === 'height') defiler();
-  }, { once: true });
-  setTimeout(defiler, 900); // filet : si la transition ne se signale pas
+  const boucle = setInterval(() => {
+    tours++;
+    const ecart = zone.getBoundingClientRect().top - MARGE;
+    if (Math.abs(ecart) > 8) { stables = 0; window.scrollBy({ top: ecart, behavior: 'auto' }); }
+    else stables++;
+    if (stables >= 3 || tours >= 14) arreter();
+  }, 180);
+  window.addEventListener('touchstart', arreter, { passive: true });
+  window.addEventListener('wheel', arreter, { passive: true });
 }
 
 function initSommelier() {
@@ -1751,7 +1752,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Som' · v30</p>
+      <p class="profil-version">Som' · v31</p>
     </div>`;
 
   // — Identité —
