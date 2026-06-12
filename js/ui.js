@@ -1194,11 +1194,11 @@ function pousserHisto(q) {
 
 /* Inspirations : des plats suggérés selon les couleurs réellement en cave */
 const INSPIRATIONS = {
-  rouge: ['Côte de bœuf', 'Plateau de fromages', 'Magret de canard'],
-  blanc: ['Poisson grillé', 'Volaille à la crème', 'Fruits de mer'],
-  'rosé': ['Barbecue', 'Cuisine épicée'],
-  effervescent: ['Apéritif', 'Huîtres'],
-  moelleux: ['Foie gras', 'Tarte aux fruits'],
+  rouge: ['somm.inspi.boeuf', 'somm.inspi.fromages', 'somm.inspi.gibier'],
+  blanc: ['somm.inspi.saumon', 'somm.inspi.poulet', 'somm.inspi.sushi'],
+  'rosé': ['somm.inspi.bbq', 'somm.inspi.pizza', 'somm.inspi.tajine'],
+  effervescent: ['somm.inspi.apero', 'somm.inspi.huitres'],
+  moelleux: ['somm.inspi.raclette', 'somm.inspi.fromages'],
 };
 function rendreSommelier() {
   // naissance paresseuse de la simulation : l'écran est maintenant visible,
@@ -1211,7 +1211,7 @@ function rendreSommelier() {
   const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
   const couleurs = [...new Set(enCave.map((b) => String(b.couleur || '').toLowerCase()))];
   const plats = [...new Set(couleurs.flatMap((c) => INSPIRATIONS[c] || []))].slice(0, 6);
-  $('#chips-inspi').innerHTML = plats.map((p) => `<button class="chip-inspi">${esc(p)}</button>`).join('');
+  $('#chips-inspi').innerHTML = plats.map((p) => `<button class="chip-inspi" data-cle="${p}">${esc(t(p))}</button>`).join('');
   $('#chips-inspi').querySelectorAll('.chip-inspi').forEach((el) => {
     el.onclick = () => { vibrer('tic'); lancerConseil(el.textContent); };
   });
@@ -1837,7 +1837,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
-      <p class="profil-version">Som' · v41</p>
+      <p class="profil-version">Som' · v42</p>
     </div>`;
 
   // — Identité —

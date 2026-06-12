@@ -59,6 +59,7 @@ html[data-theme="clair"] .btn-envoi {
 }
 /* tout ce qui pose du texte crème sur fond bordeaux reste crème */
 html[data-theme="clair"] .seg.actif,
+html[data-theme="clair"] .puce.actif,
 html[data-theme="clair"] .pastille-sommelier,
 html[data-theme="clair"] .avatar-entete,
 html[data-theme="clair"] .orbe,
