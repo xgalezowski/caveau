@@ -1751,7 +1751,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
-      <p class="profil-version">Som' · v29</p>
+      <p class="profil-version">Som' · v30</p>
     </div>`;
 
   // — Identité —

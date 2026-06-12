@@ -31,13 +31,17 @@ window.addEventListener('beforeinstallprompt', (e) => {
 // Quand un nouveau SW prend la main (skipWaiting + claim), la page se
 // recharge une fois toute seule : plus besoin du « double rechargement ».
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js')
+  // updateViaCache 'none' : le script du SW est TOUJOURS revérifié au réseau
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
     .then((reg) => {
+      const verifier = () => reg.update().catch(() => {});
       // PWA installée : le processus peut vivre des jours — on revérifie
-      // les mises à jour à chaque retour au premier plan.
+      // au retour au premier plan ET toutes les minutes tant qu'on est ouvert
+      // (sinon une app laissée au premier plan ne se met jamais à jour).
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) reg.update().catch(() => {});
+        if (!document.hidden) verifier();
       });
+      setInterval(() => { if (!document.hidden) verifier(); }, 60000);
     })
     .catch((e) => console.warn('SW non enregistré', e));
 
