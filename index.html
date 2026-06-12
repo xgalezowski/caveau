@@ -174,11 +174,11 @@
     <div class="historique-sommelier" id="historique-sommelier"></div>
   </section>
 
-  <!-- ═══ ALERTES ═══ -->
+  <!-- ═══ RADAR (ex Alertes) ═══ -->
   <section class="ecran" id="ecran-alertes" hidden>
     <div id="liste-alertes"></div>
-    <h3 class="sous-titre" data-i18n="alertes.mesVeilles">Mes veilles</h3>
-    <div id="liste-veilles"></div>
+    
+    <h3 class="sous-titre" data-i18n="alertes.nouvelleVeille">Nouvelle veille</h3>
     <form class="forme-veille" id="forme-veille">
       <select id="veille-type">
         <option value="region" data-i18n="alertes.region">Région</option>
@@ -187,8 +187,11 @@
       </select>
       <span id="veille-valeur-slot"></span>
       <input type="number" id="veille-seuil" min="1" value="3" aria-label="Seuil">
-      <button class="btn-or" type="submit" data-i18n="alertes.veiller">Veiller</button>
+      <button class="btn-or" type="submit" data-i18n="alertes.btnAjouter">+ Ajouter cette veille</button>
     </form>
+
+    <h3 class="sous-titre" data-i18n="alertes.mesVeilles" style="margin-top:24px">Mes veilles actives</h3>
+    <div id="liste-veilles"></div>
   </section>
 
   <!-- ═══ STATS ═══ -->
