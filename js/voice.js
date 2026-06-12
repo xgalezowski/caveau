@@ -1,7 +1,7 @@
 // Voix : dictée (Web Speech API) + synthèse vocale française.
 // Sur Chrome Android (Samsung), SpeechRecognition est dispo via le préfixe webkit.
 
-import store from './store.js';
+import { store } from './store.js';
 import { t } from './i18n.js';
 
 const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
