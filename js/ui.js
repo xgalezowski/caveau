@@ -171,7 +171,8 @@ function optionsRegion(selection, pays) {
 function optionsPays(selection) {
   const connus = [...new Set([...PAYS, ...store.get().bottles.map((b) => b.pays), selection])]
     .filter(Boolean).sort((a, z) => a.localeCompare(z, 'fr'));
-  return connus.map((p) => `<option ${p === selection ? 'selected' : ''}>${esc(p)}</option>`).join('') +
+  const cle = (p) => p === 'Afrique du Sud' ? 'AfriqueSud' : p.normalize("NFD").replace(/[\u0300-\u036f\- ]/g, "");
+  return connus.map((p) => `<option value="${esc(p)}" ${p === selection ? 'selected' : ''}>${esc(t('pays.' + cle(p)) || p)}</option>`).join('') +
     `<option value="__autre">${t('select.autrePays')}</option>`;
 }
 // Branche les couples pays ↔ région d'un conteneur : « Autre… » crée une
@@ -205,9 +206,9 @@ function brancherSelectsRegion(racine) {
     };
   });
 }
-function optionsListe(liste, selection) {
+function optionsListe(liste, selection, prefix = null) {
   const tout = [...new Set([...liste, selection])].filter(Boolean);
-  return tout.map((x) => `<option ${x === selection ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  return tout.map((x) => `<option value="${esc(x)}" ${x === selection ? 'selected' : ''}>${esc(prefix ? (t(`${prefix}.${x.toLowerCase().replace(/[\s/]/g, '')}`) || x) : x)}</option>`).join('');
 }
 
 // Entrée en cascade : chaque carte arrive avec un léger décalage, comme un
@@ -484,7 +485,7 @@ function ouvrirFiche(id) {
     <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.domaine || '')}
       <span class="cachet cachet-${m.code}">${m.label}</span>
       ${b.noteVivino ? `<span class="note-viv" style="margin-left:6px">★ ${String(b.noteVivino).replace('.', ',')}/5 Vivino</span>` : ''}
-      ${b.gardeDe ? `<span style="margin-left:6px">garde ${b.gardeDe}–${b.gardeA}</span>` : ''}</p>
+      ${b.gardeDe ? `<span style="margin-left:6px">${t('fiche.gardeDe').toLowerCase()} ${b.gardeDe}–${b.gardeA}</span>` : ''}</p>
     ${blocImage(b)}
     <div class="ligne">
       <div style="flex:3"><label>${t('fiche.nom')}</label><input id="f-nom" value="${esc(b.nom)}"></div>
@@ -499,7 +500,7 @@ function ouvrirFiche(id) {
     <div class="ligne">
       <div style="flex:1"><label>${t('fiche.pays')}</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
       <div style="flex:1"><label>${t('fiche.region')}</label><select id="f-region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
-      <div style="flex:1"><label>${t('fiche.couleur')}</label><select id="f-couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
+      <div style="flex:1"><label>${t('fiche.couleur')}</label><select id="f-couleur">${optionsListe(COULEURS, b.couleur, 'couleur')}</select></div>
     </div>
     <div class="ligne">
       <div style="flex:1"><label>${t('fiche.prix')}</label><input id="f-prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
@@ -589,7 +590,7 @@ function ouvrirFicheSpirit(b) {
   const id = b.id;
   $('#feuille-contenu').innerHTML = `
     <h3>${esc([b.domaine, b.nom].filter(Boolean).join(' '))}</h3>
-    <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.type || 'Spiritueux')}
+    <p style="color:var(--creme-45);font-size:13px;margin-top:4px">${esc(b.type || t('tab.spiritueux'))}
       ${b.noteWeb ? `<span class="note-viv" style="margin-left:6px">★ ${esc(b.noteWeb)}</span>` : ''}</p>
     ${blocImage(b)}
     <div class="ligne">
@@ -834,7 +835,7 @@ function initAjouter() {
   // Formulaire vin
   $('#fv-pays').innerHTML = optionsPays('France');
   $('#fv-region').innerHTML = optionsRegion('Bordeaux', 'France');
-  $('#fv-couleur').innerHTML = optionsListe(COULEURS, 'rouge');
+  $('#fv-couleur').innerHTML = optionsListe(COULEURS, 'Rouge', 'couleur');
   $('#fv-format').innerHTML = optionsListe(FORMATS, '75 cl');
   brancherSelectsRegion($('#panneau-fiche-vin'));
   $('#btn-analyser-fiche-vin').onclick = () => {
@@ -999,7 +1000,7 @@ function rendreApercu() {
       <div class="ligne">
         <div style="flex:1"><label>${t('fiche.pays')}</label><select data-k="pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
         <div style="flex:1"><label>${t('fiche.region')}</label><select data-k="region" data-region>${optionsRegion(b.region, b.pays || 'France')}</select></div>
-        <div style="flex:1"><label>${t('fiche.couleur')}</label><select data-k="couleur">${optionsListe(COULEURS, b.couleur)}</select></div>
+        <div style="flex:1"><label>${t('fiche.couleur')}</label><select data-k="couleur">${optionsListe(COULEURS, b.couleur, 'couleur')}</select></div>
       </div>
       <div class="ligne">
         <div style="flex:1"><label>${t('fiche.prix')}</label><input data-k="prix" type="number" step="0.5" value="${b.prix ?? ''}"></div>
@@ -1239,7 +1240,7 @@ function carteReco(c, i, profil) {
       <div class="reco-tete">
         <div class="reco-corps">
           <div class="reco-nom">${esc(b.nom)}${b.millesime ? ` <span class="mil">${b.millesime}</span>` : ''}</div>
-          <div class="carte-meta">${esc(b.region)} · ${esc(b.couleur)}${b.prix ? ` · ${b.prix} €` : ''} · ×${b.qty}</div>
+          <div class="carte-meta">${esc(b.region)} · ${esc(t('couleur.' + String(b.couleur || '').toLowerCase().replace(/\s+/g, '-')) || b.couleur)}${b.prix ? ` · ${b.prix} €` : ''} · ×${b.qty}</div>
           ${m && MAT_LABELS[m.code] ? `<span class="cachet cachet-${m.code}">${MAT_LABELS[m.code]}</span>` : ''}
         </div>
         <div class="reco-anneau" title="${pct}% d'accord avec votre demande">
@@ -1488,25 +1489,25 @@ function initSommelier() {
 
   $('#btn-surprise').onclick = () => {
     const enCave = vinsSeuls(store.get().bottles).filter((b) => b.qty > 0);
-    if (!enCave.length) return toast('Votre cave est vide !');
+    if (!enCave.length) return toast(t('somm.caveVide'));
     const b = surprise(enCave);
     const m = maturite(b);
     $('#orbe-scene').classList.add('compacte');
     const cSurp = String(b.couleur || 'rouge').toLowerCase().replace(/\s+/g, '-');
     $('#resultats-sommelier').innerHTML = `
       <div class="reco premier reco-c-${esc(cSurp)}" data-id="${b.id}">
-        <div class="reco-ruban">Le hasard a du goût</div>
+        <div class="reco-ruban">${t('somm.surpriseTitre')}</div>
         <div class="reco-tete">
           <div class="reco-corps">
             <div class="reco-nom">${esc(b.nom)}${b.millesime ? ` <span class="mil">${b.millesime}</span>` : ''}</div>
-            <div class="carte-meta">${esc(b.region)} · ${esc(b.couleur)}${b.prix ? ` · ${b.prix} €` : ''}</div>
+            <div class="carte-meta">${esc(b.region)} · ${esc(t('couleur.' + String(b.couleur || '').toLowerCase().replace(/\s+/g, '-')) || b.couleur)}${b.prix ? ` · ${b.prix} €` : ''}</div>
             ${MAT_LABELS[m.code] ? `<span class="cachet cachet-${m.code}">${MAT_LABELS[m.code]}</span>` : ''}
           </div>
         </div>
-        <div class="reco-texte">${m.code === 'urgent' ? 'Celle-ci n\'attendra pas, c\'est le moment parfait.' : m.code === 'apogee' ? 'Elle est à son apogée, foncez.' : 'Une jolie découverte pour ce soir.'}</div>
+        <div class="reco-texte">${m.code === 'urgent' ? t('somm.surpriseUrgente') : m.code === 'apogee' ? t('somm.surpriseApogee') : t('somm.surpriseDecouverte')}</div>
         <div class="reco-actions">
-          <button data-act="sortir">${ico('verre', 13)} Je la sors</button>
-          <button data-act="encore">${ico('de', 13)} Relancer</button>
+          <button data-act="sortir">${ico('verre', 13)} ${t('somm.jeLaSors')}</button>
+          <button data-act="encore">${ico('de', 13)} ${t('somm.surpriseRelancer')}</button>
         </div>
       </div>`;
     const el = $('#resultats-sommelier .reco');
@@ -1836,7 +1837,7 @@ function rendreProfil() {
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
       <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
-      <p class="profil-version">Som' · v40</p>
+      <p class="profil-version">Som' · v41</p>
     </div>`;
 
   // — Identité —
