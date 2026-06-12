@@ -840,7 +840,15 @@ html[data-theme="clair"] .outil-pilule { background: rgba(252, 246, 233, .55); }
 .feuille .ligne { display: flex; gap: 8px; margin-top: 10px; }
 .feuille label { font-size: 11px; color: var(--creme-45); display: block; margin-bottom: 3px; }
 .feuille .actions { display: flex; gap: 8px; margin-top: 16px; }
-.feuille .actions .btn-or { margin-top: 0; }
+.feuille .actions .btn-or, .feuille .actions .btn-sombre {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  margin-top: 0; width: auto;
+}
+.note100-wrap { margin-top: 10px; }
+.note100-wrap label { font-size: 11px; color: var(--creme-45); display: block; margin-bottom: 5px; }
+.notes-dictee { display: flex; gap: 6px; align-items: flex-end; margin-top: 10px; }
+.notes-dictee > div { flex: 1; min-width: 0; }
+.notes-dictee label { font-size: 11px; color: var(--creme-45); display: block; margin-bottom: 3px; }
 .btn-sombre {
   display: block; width: 100%; padding: 14px; border-radius: var(--rayon);
   background: var(--surface-2); border: 1px solid var(--trait); color: var(--creme);

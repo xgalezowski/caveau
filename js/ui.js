@@ -486,12 +486,14 @@ function ouvrirFiche(id) {
       ${b.gardeDe ? `<span style="margin-left:6px">garde ${b.gardeDe}–${b.gardeA}</span>` : ''}</p>
     ${blocImage(b)}
     <div class="ligne">
-      <div style="flex:2"><label>Nom / cuvée</label><input id="f-nom" value="${esc(b.nom)}"></div>
-      <div style="flex:1"><label>Millésime</label><input id="f-mil" type="number" value="${b.millesime || ''}"></div>
+      <div style="flex:3"><label>Nom / cuvée</label><input id="f-nom" value="${esc(b.nom)}"></div>
     </div>
     <div class="ligne">
-      <div style="flex:1"><label>Domaine / producteur</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
-      <div style="flex:1"><label>Appellation</label><input id="f-appellation" value="${esc(b.appellation || '')}"></div>
+      <div style="flex:2"><label>Domaine / producteur</label><input id="f-domaine" value="${esc(b.domaine || '')}"></div>
+    </div>
+    <div class="ligne">
+      <div style="flex:2"><label>Appellation</label><input id="f-appellation" value="${esc(b.appellation || '')}"></div>
+      <div style="flex:1"><label>Millésime</label><input id="f-mil" type="number" value="${b.millesime || ''}"></div>
     </div>
     <div class="ligne">
       <div style="flex:1"><label>Pays</label><select id="f-pays" data-pays>${optionsPays(b.pays || 'France')}</select></div>
@@ -511,10 +513,13 @@ function ouvrirFiche(id) {
     </div>
     ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
     <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
-    <div class="ligne" style="align-items:flex-end;margin-top:0">
-      <div style="flex:.6"><label>Ma note /100</label><input id="f-manote" type="number" min="1" max="100" value="${b.maNote ?? ''}" placeholder="—"></div>
-      <div style="flex:2"><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
-      <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes" style="height:46px">
+    <div class="note100-wrap">
+      <label>Ma note <b id="f-manote-val">${b.maNote ? `${b.maNote}/100` : '—'}</b></label>
+      <input id="f-manote" type="range" min="0" max="100" step="1" value="${b.maNote ?? 0}">
+    </div>
+    <div class="notes-dictee">
+      <div><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
+      <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
     </div>
@@ -557,6 +562,10 @@ function ouvrirFiche(id) {
       onEnd: () => $('#f-micro-notes').classList.remove('ecoute'),
       onError: (msg) => toast(msg),
     });
+  };
+  $('#f-manote').oninput = () => {
+    const v = parseInt($('#f-manote').value);
+    $('#f-manote-val').textContent = v ? `${v}/100` : '—';
   };
   $('#f-sortir').onclick = () => { dialogueSortie(id); }; // remplace le contenu, modale déjà ouverte
   $('#f-suppr').onclick = () => {
@@ -603,10 +612,13 @@ function ouvrirFicheSpirit(b) {
     </div>
     ${b.description ? `<div class="bulle-ia" style="margin-top:10px;font-size:13px">📜 ${esc(b.description)}</div>` : ''}
     <h4 class="sous-titre" style="margin:14px 0 6px;font-size:17px">Mon avis</h4>
-    <div class="ligne" style="align-items:flex-end;margin-top:0">
-      <div style="flex:.6"><label>Ma note /100</label><input id="f-manote" type="number" min="1" max="100" value="${b.maNote ?? ''}" placeholder="—"></div>
-      <div style="flex:2"><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
-      <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes" style="height:46px">
+    <div class="note100-wrap">
+      <label>Ma note <b id="f-manote-val">${b.maNote ? `${b.maNote}/100` : '—'}</b></label>
+      <input id="f-manote" type="range" min="0" max="100" step="1" value="${b.maNote ?? 0}">
+    </div>
+    <div class="notes-dictee">
+      <div><label>Mes notes de dégustation</label><textarea id="f-notes" rows="2" placeholder="Dictez ou écrivez vos impressions…">${esc(b.notes || '')}</textarea></div>
+      <button class="micro micro-mini" id="f-micro-notes" aria-label="Dicter mes notes">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
     </div>
@@ -668,6 +680,10 @@ function ouvrirFicheSpirit(b) {
       onEnd: () => $('#f-micro-notes').classList.remove('ecoute'),
       onError: (msg) => toast(msg),
     });
+  };
+  $('#f-manote').oninput = () => {
+    const v = parseInt($('#f-manote').value);
+    $('#f-manote-val').textContent = v ? `${v}/100` : '—';
   };
 }
 
@@ -792,7 +808,7 @@ function initAjouter() {
   // comme pour les spiritueux — le formulaire affiché dépend de la catégorie.
   const montrerModes = () => {
     $('#modes-ajout [data-mode="forme"]').hidden = false;
-    const actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'texte';
+    const actif = $('#modes-ajout .seg.actif')?.dataset.mode || 'photo';
     ['texte', 'voix', 'photo'].forEach((m) => { $(`#panneau-${m}`).hidden = m !== actif; });
     $('#panneau-spiritueux').hidden = !(catAjout === 'spiritueux' && actif === 'forme');
     $('#panneau-fiche-vin').hidden = !(catAjout === 'vin' && actif === 'forme');
@@ -818,6 +834,7 @@ function initAjouter() {
   $('#fv-pays').innerHTML = optionsPays('France');
   $('#fv-region').innerHTML = optionsRegion('Bordeaux', 'France');
   $('#fv-couleur').innerHTML = optionsListe(COULEURS, 'rouge');
+  $('#fv-format').innerHTML = optionsListe(FORMATS, '75 cl');
   brancherSelectsRegion($('#panneau-fiche-vin'));
   $('#btn-analyser-fiche-vin').onclick = () => {
     const nom = $('#fv-nom').value.trim();
@@ -831,6 +848,7 @@ function initAjouter() {
       domaine: $('#fv-domaine').value.trim(),
       appellation: appellation || null,
       pays: $('#fv-pays').value, region, couleur, millesime,
+      format: $('#fv-format').value || '75 cl',
       prix: parseFloat($('#fv-prix').value) || null,
       qty: parseInt($('#fv-qty').value) || 1,
       ...gardeParDefaut(region, couleur, millesime),
