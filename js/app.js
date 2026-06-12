@@ -1,6 +1,7 @@
 // Bootstrap : UI, service worker, invite d'installation PWA.
 import { initUI, toast } from './ui.js';
 import { store } from './store.js';
+import { traduireDOM } from './i18n.js';
 
 // Lien magique : ouvrir l'app avec #cle=XXX enregistre la clé IA dans les
 // réglages (une seule fois), puis nettoie l'URL. Le fragment ne quitte
@@ -11,6 +12,7 @@ if (hash.get('cle')) {
   history.replaceState(null, '', location.pathname + location.search);
 }
 
+traduireDOM();
 initUI();
 if (store.get().settings.apiKey && hash.get('cle')) toast('🔑 Clé IA enregistrée sur cet appareil');
 

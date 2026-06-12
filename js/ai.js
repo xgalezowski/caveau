@@ -3,6 +3,7 @@
 //   - Clé « sk-ant-… »  → API Claude (Anthropic)
 //   - Autre clé (AQ./AIza…) → API Gemini (Google), avec grounding Google Search
 //     pour aller chercher prix et fiches des bouteilles sur le web.
+import { getPrompt } from './i18n.js';
 
 const MODELE_CLAUDE = 'claude-haiku-4-5-20251001';
 const MODELE_GEMINI = 'gemini-2.5-flash';
@@ -114,8 +115,6 @@ function extraireJSON(texte) {
 
 /* ─── Lecture d'étiquette (photo) ─── */
 
-const PROMPT_ETIQUETTE = 'Voici une étiquette de bouteille de vin. Réponds UNIQUEMENT avec un JSON : {"nom": string, "domaine": string|null, "appellation": string|null, "pays": string|null, "region": string|null, "couleur": "rouge"|"blanc"|"rosé"|"effervescent"|"moelleux"|null, "millesime": number|null, "cepages": string[], "alcool": number|null}. Pour les vins français, région parmi : Bordeaux, Bourgogne, Rhône Nord, Rhône Sud, Loire, Alsace, Champagne, Beaujolais, Languedoc, Provence, Sud-Ouest, Jura, Savoie, Corse ; sinon la région réelle du pays (ex : Toscane, Rioja, Napa Valley). "alcool" = degré en % vol si lisible.';
-
 export async function analyserEtiquette(apiKey, base64, mediaType) {
   let texte;
   if (fournisseur(apiKey) === 'anthropic') {
@@ -123,19 +122,18 @@ export async function analyserEtiquette(apiKey, base64, mediaType) {
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-        { type: 'text', text: PROMPT_ETIQUETTE },
+        { type: 'text', text: getPrompt('etiquette') },
       ],
-    }], 'Tu es un sommelier expert en lecture d\'étiquettes.', 600);
+    }], getPrompt('systemEtiquette'), 600);
   } else {
     texte = await appelerGemini(apiKey, [
       { inline_data: { mime_type: mediaType, data: base64 } },
-      { text: PROMPT_ETIQUETTE },
-    ], 'Tu es un sommelier expert en lecture d\'étiquettes.');
+      { text: getPrompt('etiquette') },
+    ], getPrompt('systemEtiquette'));
   }
   return extraireJSON(texte);
 }
 
-const PROMPT_ETIQUETTE_SPIRIT = 'Voici une étiquette de spiritueux. Réponds UNIQUEMENT avec un JSON : {"type": "Whisky"|"Rhum"|"Gin"|"Cognac"|"Armagnac"|"Calvados"|"Eau-de-vie"|"Vodka"|"Tequila / Mezcal"|"Liqueur"|"Autre", "marque": string|null (marque ou distillerie), "nom": string|null (expression ou cuvée, ex : "Uigeadail", "XO", "12 ans"), "age": number|null (âge en années si indiqué), "alcool": number|null (degré % vol), "pays": string|null}.';
 
 export async function analyserEtiquetteSpirit(apiKey, base64, mediaType) {
   let texte;
@@ -144,14 +142,14 @@ export async function analyserEtiquetteSpirit(apiKey, base64, mediaType) {
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-        { type: 'text', text: PROMPT_ETIQUETTE_SPIRIT },
+        { type: 'text', text: getPrompt('etiquetteSpirit') },
       ],
-    }], 'Tu es un caviste expert en spiritueux.', 500);
+    }], getPrompt('systemEtiquetteSpirit'), 500);
   } else {
     texte = await appelerGemini(apiKey, [
       { inline_data: { mime_type: mediaType, data: base64 } },
-      { text: PROMPT_ETIQUETTE_SPIRIT },
-    ], 'Tu es un caviste expert en spiritueux.');
+      { text: getPrompt('etiquetteSpirit') },
+    ], getPrompt('systemEtiquetteSpirit'));
   }
   return extraireJSON(texte);
 }
@@ -165,12 +163,7 @@ export async function enrichirBouteille(apiKey, b) {
   if (b.categorie === 'spiritueux') return enrichirSpiritueux(apiKey, b);
   const libelle = [b.nom, b.domaine, b.appellation || b.region, b.couleur, b.millesime]
     .filter(Boolean).join(' ');
-  const consigne = 'Tu es un caviste documentaliste. Pour le vin demandé, cherche sur le web et donne :\n' +
-    '1. "prix" : le prix boutique actuel TTC en euros (wine-searcher, idealwine, vinatis, sites de domaines…). Si tu ne trouves pas de prix fiable pour ce vin précis (ou ce millésime), mets null — n\'invente JAMAIS.\n' +
-    '2. "description" : une fiche de 60 à 100 mots en français : domaine, cépages, style, arômes, accords, potentiel de garde. Si le vin est introuvable, décris l\'appellation et mets "generique": true.\n' +
-    '3. "noteVivino" : la note moyenne Vivino sur 5 de ce vin (cherche « [nom du vin] vivino »). null si introuvable — n\'invente JAMAIS.\n' +
-    '4. Les champs d\'identité s\'ils sont vérifiables : "pays", "appellation", "domaine" (producteur), "cepages" (string, séparés par des virgules), "alcool" (degré % vol). null si incertain.\n' +
-    'Réponds UNIQUEMENT en JSON : {"prix": number|null, "description": string, "generique": boolean, "noteVivino": number|null, "pays": string|null, "appellation": string|null, "domaine": string|null, "cepages": string|null, "alcool": number|null}';
+  const consigne = getPrompt('enrichissement');
   let texte;
   let viaWeb = false;
   if (fournisseur(apiKey) === 'gemini') {
@@ -204,12 +197,7 @@ export async function enrichirBouteille(apiKey, b) {
 async function enrichirSpiritueux(apiKey, b) {
   const libelle = [b.type, b.domaine, b.nom, b.age ? b.age + ' ans' : null, b.alcool ? b.alcool + '%' : null]
     .filter(Boolean).join(' ');
-  const consigne = 'Tu es un caviste spécialiste des spiritueux. Pour la bouteille demandée, cherche sur le web et donne :\n' +
-    '1. "prix" : le prix boutique actuel TTC en euros. Si introuvable pour cette bouteille précise, mets null — n\'invente JAMAIS.\n' +
-    '2. "description" : une fiche de 60 à 100 mots en français : distillerie/maison, élaboration (fûts, finitions), profil aromatique (nez, bouche, finale).\n' +
-    '3. "noteWeb" : la note communautaire de référence avec sa source (ex : "87/100 sur Whiskybase", "3,8/5 sur Distiller", "8,2/10 sur RumX"). null si introuvable — n\'invente JAMAIS.\n' +
-    '4. "alcool" : degré % vol si vérifiable, sinon null.\n' +
-    'Réponds UNIQUEMENT en JSON : {"prix": number|null, "description": string, "noteWeb": string|null, "alcool": number|null}';
+  const consigne = getPrompt('enrichissementSpirit');
   let texte;
   let viaWeb = false;
   if (fournisseur(apiKey) === 'gemini') {
@@ -243,8 +231,7 @@ function resumeCave(bottles) {
 }
 
 export async function sommelierPlus(apiKey, question, bottles) {
-  const system = `Tu es le sommelier personnel de l'utilisateur. Voici sa cave actuelle :\n${resumeCave(bottles) || '(cave vide)'}\n` +
-    'Réponds en français, chaleureux et précis, 120 mots max. Recommande prioritairement des bouteilles DE SA CAVE (accord, maturité, prix vs occasion), en t\'appuyant sur leurs fiches. Si rien ne convient, dis-le et suggère quoi acheter.';
+  const system = getPrompt('sommelierSystem')(resumeCave(bottles));
   if (fournisseur(apiKey) === 'anthropic') {
     return appelerClaude(apiKey, [{ role: 'user', content: question }], system, 700);
   }
@@ -258,7 +245,7 @@ export async function sommelierPlus(apiKey, question, bottles) {
    Renvoie un tableau de 3 chaînes (index = rang). Lève en cas d'échec :
    l'appelant retombe alors sur les argumentaires locaux.                    */
 
-const OCCASION_LABEL = { semaine: 'un dîner de semaine, simple', weekend: 'un repas du week-end, convivial', grande: 'une grande occasion, où l\'on veut marquer le coup' };
+
 
 export async function argumenterRecos(apiKey, repas, occasion, choix, budgetMax = null) {
   const vins = choix.map((c, i) => {
@@ -275,25 +262,11 @@ export async function argumenterRecos(apiKey, repas, occasion, choix, budgetMax 
     };
   });
 
-  const system =
-    'Tu es un sommelier d\'exception : passion, culture, et surtout une vraie ' +
-    'prise de position. On te confie un repas, une occasion, et 3 vins de la cave ' +
-    'du client, déjà présélectionnés et classés par un moteur d\'accord (le n°1 est ' +
-    'jugé le meilleur). Ton rôle : DÉFENDRE ce classement avec conviction, en ' +
-    'français, comme si tu parlais à un ami à table.\n\n' +
-    'Règles ABSOLUES :\n' +
-    '- Chaque argumentaire est UNIQUE — aucune tournure ni formule recyclée d\'une carte à l\'autre.\n' +
-    '- n°1 : explique pourquoi C\'EST LE meilleur accord, précisément (la rencontre exacte entre le plat et ce vin). Assume, tranche.\n' +
-    '- n°2 : pourquoi elle talonne la première, ce qu\'elle apporte de DIFFÉRENT, dans quel cas la préférer.\n' +
-    '- n°3 : le pari, l\'audace — pourquoi l\'oser, ce qu\'elle a d\'inattendu.\n' +
-    '- Sois concret : cépages, structure, ce que ça donne en bouche AVEC ce plat. Termine chacune par un conseil de service court (température, carafage).\n' +
-    '- Si une "fiche" est donnée pour un vin, appuie-toi dessus pour les arômes — n\'invente JAMAIS de notes qui la contrediraient.\n' +
-    '- 40 à 70 mots par argumentaire. Pas de markdown, pas d\'émoji, pas de titre — juste le paragraphe.\n' +
-    'Réponds UNIQUEMENT en JSON : {"recos": ["texte n°1", "texte n°2", "texte n°3"]} (autant d\'entrées que de vins fournis).';
+  const system = getPrompt('argumentaires');
 
   const demande = JSON.stringify({
     repas,
-    occasion: OCCASION_LABEL[occasion] || occasion,
+    occasion: getPrompt('occasionLabels')[occasion] || occasion,
     budget_max_eur: budgetMax || null,
     vins,
   });
@@ -312,8 +285,8 @@ export async function argumenterRecos(apiKey, repas, occasion, choix, budgetMax 
 /* ─── Équivalents de rachat ─── */
 
 export async function equivalents(apiKey, bottle) {
-  const demande = `Je veux racheter ou remplacer : ${bottle.nom} ${bottle.millesime || ''} (${bottle.appellation || bottle.region}, ${bottle.couleur}${bottle.prix ? ', environ ' + bottle.prix + '€' : ''}). Donne 3 alternatives au profil proche (même budget ±30 %), format : « Nom — appellation — prix estimé — pourquoi », une ligne chacune, en français.`;
-  const system = 'Tu es un caviste indépendant français au goût sûr.';
+  const demande = getPrompt('equivalentsDemande')(bottle);
+  const system = getPrompt('systemEquivalents');
   if (fournisseur(apiKey) === 'anthropic') {
     return appelerClaude(apiKey, [{ role: 'user', content: demande }], system, 500);
   }

@@ -9,6 +9,7 @@ import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturi
 import { dicter, parler, voixDisponible } from './voice.js';
 import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille, argumenterRecos } from './ai.js';
 import { vibrer, transitionEcran } from './fx.js';
+import { t, getLang } from './i18n.js';
 
 // Fait parler le sommelier : belle voix Gemini si une clé Gemini est configurée,
 // sinon repli sur la synthèse du navigateur. Pendant la lecture, l'encre
@@ -1731,10 +1732,10 @@ export function majAvatar() {
 }
 
 const AVANTAGES_PREMIUM = [
-  'Lectures vocales du sommelier en voix premium illimitées',
-  'Embellissement IA des photos & illustrations de bouteilles',
-  'Prix, fiches et notes Vivino récupérés sur le web',
-  'Sauvegarde chiffrée dans le cloud & multi-appareils',
+  () => t('premium.0'),
+  () => t('premium.1'),
+  () => t('premium.2'),
+  () => t('premium.3'),
 ];
 
 function rendreProfil() {
@@ -1750,76 +1751,86 @@ function rendreProfil() {
         ${av}<span class="profil-avatar-cam">${ico('photo', 13)}</span>
       </button>
       <input type="file" id="p-avatar-input" accept="image/*" hidden>
-      <div class="profil-nom-aff">${esc(s.nom || 'Votre nom')}</div>
-      <div class="profil-email-aff">${esc(s.email || 'votre@email.com')}</div>
-      <span class="profil-plan-pastille ${premium ? 'pre' : ''}">${premium ? '★ Premium' : 'Offre Gratuite'}</span>
+      <div class="profil-nom-aff">${esc(s.nom || t('profil.votreNom'))}</div>
+      <div class="profil-email-aff">${esc(s.email || t('profil.votreEmail'))}</div>
+      <span class="profil-plan-pastille ${premium ? 'pre' : ''}">${premium ? t('profil.premium') : t('profil.gratuit')}</span>
     </div>
 
     <div class="profil-bloc">
-      <h3 class="sous-titre">Mon identité</h3>
+      <h3 class="sous-titre">${t('profil.identite')}</h3>
       <div class="ligne-form">
-        <div style="flex:1"><label>Nom</label><input id="p-nom" placeholder="Xavier Galezowski" value="${esc(s.nom)}"></div>
+        <div style="flex:1"><label>${t('profil.nom')}</label><input id="p-nom" placeholder="Xavier Galezowski" value="${esc(s.nom)}"></div>
       </div>
       <div class="ligne-form">
-        <div style="flex:1"><label>Email</label><input id="p-email" type="email" placeholder="vous@email.com" value="${esc(s.email)}"></div>
+        <div style="flex:1"><label>${t('profil.email')}</label><input id="p-email" type="email" placeholder="vous@email.com" value="${esc(s.email)}"></div>
       </div>
-      <button class="btn-or" id="p-save-identite">Enregistrer mon profil</button>
+      <button class="btn-or" id="p-save-identite">${t('profil.enregistrerProfil')}</button>
     </div>
 
     <div class="profil-bloc carte-offre ${premium ? 'pre' : ''}">
       <div class="offre-tete">
         <div>
-          <div class="offre-titre">${premium ? 'Som\' Premium' : 'Som\' — Gratuit'}</div>
-          <div class="offre-sous">${premium ? 'Merci de votre soutien 🥂' : 'Passez Premium pour libérer toute la cave'}</div>
+          <div class="offre-titre">${premium ? t('profil.somPremium') : t('profil.somGratuit')}</div>
+          <div class="offre-sous">${premium ? t('profil.merciPremium') : t('profil.invitePremium')}</div>
         </div>
-        <div class="offre-prix">${premium ? '✓' : '4,99 €<small>/mois</small>'}</div>
+        <div class="offre-prix">${premium ? '✓' : t('profil.prixPremium')}</div>
       </div>
       <ul class="offre-avantages">
-        ${AVANTAGES_PREMIUM.map((a) => `<li>${esc(a)}</li>`).join('')}
+        ${AVANTAGES_PREMIUM.map((a) => `<li>${esc(a())}</li>`).join('')}
       </ul>
       ${premium
-        ? `<button class="btn-fantome" id="p-plan-toggle">Revenir à l'offre gratuite</button>`
-        : `<button class="btn-or btn-large" id="p-plan-toggle">${ico('etincelles', 15)} Passer Premium</button>`}
+        ? `<button class="btn-fantome" id="p-plan-toggle">${t('profil.revenirGratuit')}</button>`
+        : `<button class="btn-or btn-large" id="p-plan-toggle">${ico('etincelles', 15)} ${t('profil.passerPremium')}</button>`}
     </div>
 
     <div class="profil-bloc">
-      <h3 class="sous-titre">Préférences</h3>
+      <h3 class="sous-titre">${t('profil.preferences')}</h3>
       <label class="ligne-toggle">
-        <span>Le sommelier me répond à voix haute</span>
+        <span>${t('profil.voixActive')}</span>
         <input type="checkbox" id="p-voix" ${s.voixActive ? 'checked' : ''}>
       </label>
       <label class="ligne-toggle">
-        <span>Masquer la valeur de ma cave</span>
+        <span>${t('profil.masquerValeur')}</span>
         <input type="checkbox" id="p-valeur" ${s.valeurCachee ? 'checked' : ''}>
       </label>
       <label class="ligne-toggle">
-        <span>Thème clair</span>
+        <span>${t('profil.themeClair')}</span>
         <input type="checkbox" id="p-theme" ${s.theme === 'clair' ? 'checked' : ''}>
       </label>
+      <div class="ligne-form" style="margin-top:16px;">
+        <div style="flex:1">
+          <label>${t('profil.langue')}</label>
+          <select id="p-lang">
+            <option value="fr" ${s.lang === 'fr' ? 'selected' : ''}>Français</option>
+            <option value="en" ${s.lang === 'en' ? 'selected' : ''}>English</option>
+            <option value="es" ${s.lang === 'es' ? 'selected' : ''}>Español (Paraguay)</option>
+          </select>
+        </div>
+      </div>
       <details class="avance" ${s.apiKey ? '' : ''}>
-        <summary>Avancé — clé IA</summary>
-        <label class="aide-champ">Clé API IA — Gemini ou Claude (débloque photo, prix &amp; fiches web, Sommelier+). Stockée uniquement sur cet appareil.</label>
-        <input id="p-api" type="password" placeholder="AQ.… / AIza… / sk-ant-…" value="${esc(s.apiKey)}">
-        <button class="btn-sombre" id="p-save-api" style="width:100%;margin-top:8px">Enregistrer la clé</button>
+        <summary>${t('profil.avanceCle')}</summary>
+        <label class="aide-champ">${t('profil.cleDescription')}</label>
+        <input id="p-api" type="password" placeholder="${t('profil.clePlaceholder')}" value="${esc(s.apiKey)}">
+        <button class="btn-sombre" id="p-save-api" style="width:100%;margin-top:8px">${t('profil.enregistrerCle')}</button>
       </details>
     </div>
 
     <div class="profil-bloc">
-      <h3 class="sous-titre">Mes données</h3>
-      <button class="btn-fantome" id="p-installer" hidden>📲 Installer l'app sur ce téléphone</button>
+      <h3 class="sous-titre">${t('profil.mesDonnees')}</h3>
+      <button class="btn-fantome" id="p-installer" hidden>${t('profil.installer')}</button>
       <div class="actions" style="margin-top:4px">
-        <button class="btn-sombre" id="p-export" style="flex:1">⬇️ Exporter</button>
-        <button class="btn-sombre" id="p-import" style="flex:1">⬆️ Importer</button>
+        <button class="btn-sombre" id="p-export" style="flex:1">${t('profil.exporter')}</button>
+        <button class="btn-sombre" id="p-import" style="flex:1">${t('profil.importer')}</button>
         <input type="file" id="p-input-import" accept=".json" hidden>
       </div>
-      <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">Tout effacer</button>
+      <button class="btn-discret btn-danger" id="p-vider" style="width:100%;margin-top:8px">${t('profil.toutEffacer')}</button>
       <p class="profil-version">Som' · v37</p>
     </div>`;
 
   // — Identité —
   $('#p-save-identite').onclick = () => {
     store.majSettings({ nom: $('#p-nom').value.trim(), email: $('#p-email').value.trim() });
-    majAvatar(); rendreProfil(); toast('Profil enregistré');
+    majAvatar(); rendreProfil(); toast(t('profil.toastProfil'));
   };
   // — Avatar photo —
   $('#p-avatar-btn').onclick = () => $('#p-avatar-input').click();
@@ -1832,8 +1843,8 @@ function rendreProfil() {
       });
       const petit = await compresserDataUrl(brut, 256, 0.8);
       store.majSettings({ avatar: petit });
-      majAvatar(); rendreProfil(); toast('Photo de profil mise à jour');
-    } catch (err) { toast('Image illisible'); }
+      majAvatar(); rendreProfil(); toast(t('profil.toastAvatar'));
+    } catch (err) { toast('Erreur'); }
   };
   // — Abonnement (placeholder, sans backend) —
   $('#p-plan-toggle').onclick = () => {
@@ -1841,7 +1852,7 @@ function rendreProfil() {
     store.majSettings({ plan: premium ? 'gratuit' : 'premium' });
     if (!premium) vibrer('succes');
     rendreProfil();
-    toast(premium ? 'Retour à l’offre gratuite' : '✨ Bienvenue dans Som’ Premium !');
+    toast(premium ? t('profil.toastGratuit') : t('profil.toastPremium'));
   };
   // — Préférences —
   $('#p-voix').onchange = (e) => store.majSettings({ voixActive: e.target.checked });
@@ -1856,9 +1867,13 @@ function rendreProfil() {
     vibrer('tic');
   };
   $('#p-valeur').onchange = (e) => store.majSettings({ valeurCachee: e.target.checked });
+  $('#p-lang').onchange = (e) => {
+    store.majSettings({ lang: e.target.value });
+    location.reload();
+  };
   $('#p-save-api').onclick = () => {
     store.majSettings({ apiKey: $('#p-api').value.trim() });
-    toast('Clé IA enregistrée');
+    toast(t('profil.toastCle'));
   };
   // — Données —
   $('#p-export').onclick = () => {

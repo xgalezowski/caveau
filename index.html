@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Som' — Parlez à votre cave</title>
-<meta name="description" content="Votre cave à vin vous parle : inventaire à la voix, accords mets-vins, alertes et rachats malins.">
+<title data-i18n="app.titre">Som' — Parlez à votre cave</title>
+<meta name="description" content="Votre cave à vin vous parle : inventaire à la voix, accords mets-vins, alertes et rachats malins." data-i18n-content="app.description">
 <meta name="theme-color" content="#120a0d">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -24,7 +24,7 @@
   </button>
   <div class="entete-arche">
     <h1 class="marque">Som'</h1>
-    <p class="devise">— votre cave vous parle —</p>
+    <p class="devise" data-i18n="app.devise">— votre cave vous parle —</p>
   </div>
 </header>
 
@@ -33,12 +33,12 @@
   <!-- ═══ CAVE ═══ -->
   <section class="ecran" id="ecran-cave" hidden>
     <div class="segmente" id="categorie-cave">
-      <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> Vins</button>
-      <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> Spiritueux</button>
+      <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> <span data-i18n="tab.vins">Vins</span></button>
+      <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> <span data-i18n="tab.spiritueux">Spiritueux</span></button>
     </div>
     <div class="bandeau-valeur" id="bandeau-valeur"></div>
     <div class="barre-recherche">
-      <input type="search" id="recherche" placeholder="Chercher une bouteille, une région…" autocomplete="off">
+      <input type="search" id="recherche" placeholder="Chercher une bouteille, une région…" data-i18n-placeholder="cave.recherche" autocomplete="off">
     </div>
     <div class="filtres" id="filtres-couleur"></div>
     <div id="liste-cave"></div>
@@ -47,34 +47,34 @@
   <!-- ═══ AJOUTER ═══ -->
   <section class="ecran" id="ecran-ajouter" hidden>
     <div class="segmente" id="categorie-ajout">
-      <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> Vin</button>
-      <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> Spiritueux</button>
+      <button class="seg actif" data-cat="vin"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10c0 5.2-2 8.5-5 8.5S7 8.2 7 3Z"/><path d="M12 11.5V19M8.5 21h7"/></svg> <span data-i18n="tab.vin">Vin</span></button>
+      <button class="seg" data-cat="spiritueux"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3.5L15.5 9v10a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V9L10 6.5V3Z"/><path d="M8.5 14h7"/></svg> <span data-i18n="tab.spiritueux">Spiritueux</span></button>
     </div>
     <div class="segmente" id="modes-ajout">
-      <button class="seg actif" data-mode="photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg> Photo</button>
-      <button class="seg" data-mode="voix"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg> Voix</button>
-      <button class="seg" data-mode="texte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.12 2.12 0 0 1 3 3L8 19l-4 1Z"/></svg> Texte</button>
-      <button class="seg" data-mode="forme"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg> Fiche</button>
+      <button class="seg actif" data-mode="photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg> <span data-i18n="ajout.modePhoto">Photo</span></button>
+      <button class="seg" data-mode="voix"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg> <span data-i18n="ajout.modeVoix">Voix</span></button>
+      <button class="seg" data-mode="texte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.12 2.12 0 0 1 3 3L8 19l-4 1Z"/></svg> <span data-i18n="ajout.modeTexte">Texte</span></button>
+      <button class="seg" data-mode="forme"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg> <span data-i18n="ajout.modeFiche">Fiche</span></button>
     </div>
 
     <div class="mode-panneau" id="panneau-texte" hidden>
-      <textarea id="saisie-texte" rows="4" placeholder="Ex : 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€&#10;Sancerre blanc 2022, 18 euros&#10;Champagne Bollinger, x2"></textarea>
-      <button class="btn-or" id="btn-analyser-texte">Analyser</button>
+      <textarea id="saisie-texte" rows="4" placeholder="Ex : 3 bouteilles de Gevrey-Chambertin 2019 domaine Dugat, 65€&#10;Sancerre blanc 2022, 18 euros&#10;Champagne Bollinger, x2" data-i18n-placeholder="ajout.textePlaceholder"></textarea>
+      <button class="btn-or" id="btn-analyser-texte" data-i18n="ajout.analyser">Analyser</button>
     </div>
 
     <div class="mode-panneau" id="panneau-voix" hidden>
       <button class="micro" id="btn-micro" aria-label="Dicter">
         <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
-      <p class="micro-aide" id="micro-aide">Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »</p>
+      <p class="micro-aide" id="micro-aide" data-i18n="ajout.voixHint">Touchez et dictez : « deux bouteilles de Chinon 2020, quinze euros »</p>
       <p class="transcript" id="transcript-ajout"></p>
     </div>
 
     <div class="mode-panneau" id="panneau-photo">
       <label class="zone-photo" for="input-photo">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 8h2.5L8 6h8l1.5 2H20a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
-        <span>Photographier les étiquettes</span>
-        <small>une ou plusieurs photos — jusqu'à 10 d'un coup</small>
+        <span data-i18n="ajout.photoTitre">Photographier les étiquettes</span>
+        <small data-i18n="ajout.photoSousTitre">une ou plusieurs photos — jusqu'à 10 d'un coup</small>
         <input type="file" id="input-photo" accept="image/*" multiple hidden>
       </label>
       <p class="note-ia" id="note-photo-ia"></p>
@@ -82,42 +82,42 @@
 
     <div class="mode-panneau" id="panneau-fiche-vin" hidden>
       <div class="ligne-form">
-        <div style="flex:1.6"><label>Nom / cuvée</label><input id="fv-nom" placeholder="Château Sociando-Mallet…"></div>
-        <div style="flex:.7"><label>Millésime</label><input id="fv-mil" type="number" placeholder="2019"></div>
+        <div style="flex:1.6"><label data-i18n="fiche.nom">Nom / cuvée</label><input id="fv-nom" placeholder="Château Sociando-Mallet…"></div>
+        <div style="flex:.7"><label data-i18n="fiche.millesime">Millésime</label><input id="fv-mil" type="number" placeholder="2019"></div>
       </div>
       <div class="ligne-form">
-        <div style="flex:1"><label>Domaine / producteur</label><input id="fv-domaine"></div>
-        <div style="flex:1"><label>Appellation</label><input id="fv-appellation" placeholder="Haut-Médoc…"></div>
+        <div style="flex:1"><label data-i18n="fiche.domaine">Domaine / producteur</label><input id="fv-domaine"></div>
+        <div style="flex:1"><label data-i18n="fiche.appellation">Appellation</label><input id="fv-appellation" placeholder="Haut-Médoc…"></div>
       </div>
       <div class="ligne-form">
-        <div style="flex:1"><label>Pays</label><select id="fv-pays" data-pays></select></div>
-        <div style="flex:1"><label>Région</label><select id="fv-region" data-region></select></div>
-        <div style="flex:1"><label>Couleur</label><select id="fv-couleur"></select></div>
+        <div style="flex:1"><label data-i18n="fiche.pays">Pays</label><select id="fv-pays" data-pays></select></div>
+        <div style="flex:1"><label data-i18n="fiche.region">Région</label><select id="fv-region" data-region></select></div>
+        <div style="flex:1"><label data-i18n="fiche.couleur">Couleur</label><select id="fv-couleur"></select></div>
       </div>
       <div class="ligne-form">
-        <div style="flex:1"><label>Prix (€)</label><input id="fv-prix" type="number" step="0.5"></div>
-        <div style="flex:1"><label>Quantité</label><input id="fv-qty" type="number" min="1" value="1"></div>
-        <div style="flex:1"><label>Format</label><select id="fv-format"></select></div>
+        <div style="flex:1"><label data-i18n="fiche.prix">Prix (€)</label><input id="fv-prix" type="number" step="0.5"></div>
+        <div style="flex:1"><label data-i18n="fiche.quantite">Quantité</label><input id="fv-qty" type="number" min="1" value="1"></div>
+        <div style="flex:1"><label data-i18n="fiche.format">Format</label><select id="fv-format"></select></div>
       </div>
-      <button class="btn-or" id="btn-analyser-fiche-vin">Analyser</button>
+      <button class="btn-or" id="btn-analyser-fiche-vin" data-i18n="ajout.analyser">Analyser</button>
     </div>
 
     <div class="mode-panneau" id="panneau-spiritueux" hidden>
       <div class="ligne-form">
-        <div style="flex:1"><label>Type</label><select id="sp-type"></select></div>
-        <div style="flex:1.4"><label>Marque / distillerie</label><input id="sp-marque" placeholder="Ardbeg, Clément…"></div>
+        <div style="flex:1"><label data-i18n="spirit.type">Type</label><select id="sp-type"></select></div>
+        <div style="flex:1.4"><label data-i18n="spirit.marque">Marque / distillerie</label><input id="sp-marque" placeholder="Ardbeg, Clément…"></div>
       </div>
       <div class="ligne-form">
-        <div style="flex:1.6"><label>Nom / expression</label><input id="sp-nom" placeholder="10 ans, Uigeadail, XO…"></div>
-        <div style="flex:.7"><label>Âge (ans)</label><input id="sp-age" type="number" min="0"></div>
-        <div style="flex:.7"><label>% vol</label><input id="sp-alcool" type="number" step="0.1"></div>
+        <div style="flex:1.6"><label data-i18n="spirit.nom">Nom / expression</label><input id="sp-nom" placeholder="10 ans, Uigeadail, XO…"></div>
+        <div style="flex:.7"><label data-i18n="spirit.age">Âge (ans)</label><input id="sp-age" type="number" min="0"></div>
+        <div style="flex:.7"><label data-i18n="fiche.alcool">% vol</label><input id="sp-alcool" type="number" step="0.1"></div>
       </div>
       <div class="ligne-form">
-        <div style="flex:1"><label>Pays</label><select id="sp-pays"></select></div>
-        <div style="flex:.8"><label>Prix (€)</label><input id="sp-prix" type="number" step="0.5"></div>
-        <div style="flex:.7"><label>Quantité</label><input id="sp-qty" type="number" min="1" value="1"></div>
+        <div style="flex:1"><label data-i18n="fiche.pays">Pays</label><select id="sp-pays"></select></div>
+        <div style="flex:.8"><label data-i18n="fiche.prix">Prix (€)</label><input id="sp-prix" type="number" step="0.5"></div>
+        <div style="flex:.7"><label data-i18n="fiche.quantite">Quantité</label><input id="sp-qty" type="number" min="1" value="1"></div>
       </div>
-      <button class="btn-or" id="btn-analyser-spirit">Analyser</button>
+      <button class="btn-or" id="btn-analyser-spirit" data-i18n="ajout.analyser">Analyser</button>
     </div>
 
     <div id="apercu-ajout"></div>
@@ -131,7 +131,7 @@
       <div class="toile-fluide" id="orbe" data-etat="repos" role="button" aria-label="Parler au sommelier" tabindex="0">
         <canvas class="fluide-canvas"></canvas>
       </div>
-      <p class="fluide-statut" id="orbe-statut">Touchez le micro et dites votre repas</p>
+      <p class="fluide-statut" id="orbe-statut" data-i18n="somm.repos">Touchez le micro et dites votre repas</p>
       <!-- la transcription apparaît en sous-titres, comme au cinéma -->
       <div class="sous-titres" id="orbe-transcript" aria-live="polite"></div>
       <div class="fluide-outils">
@@ -141,30 +141,30 @@
         </button>
         <div class="chips-inspi" id="chips-inspi"></div>
         <div class="segmente segmente-verre" id="occasions">
-          <button class="seg" data-occ="semaine">Semaine</button>
-          <button class="seg actif" data-occ="weekend">Week-end</button>
-          <button class="seg" data-occ="grande">Grande occasion</button>
+          <button class="seg" data-occ="semaine" data-i18n="occasion.semaine">Semaine</button>
+          <button class="seg actif" data-occ="weekend" data-i18n="occasion.weekend">Week-end</button>
+          <button class="seg" data-occ="grande" data-i18n="occasion.grande">Grande occasion</button>
         </div>
         <label class="budget-fluide">
-          <span>Budget</span>
+          <span data-i18n="somm.budget">Budget</span>
           <input type="range" id="budget-max" min="10" max="210" step="10" value="210">
-          <b id="budget-aff">libre</b>
+          <b id="budget-aff" data-i18n="somm.budgetLibre">libre</b>
         </label>
         <div class="rangee-outils">
           <button class="outil-pilule" id="lien-ecrire">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.12 2.12 0 0 1 3 3L8 19l-4 1Z"/></svg>
-            Écrire
+            <span data-i18n="somm.ecrire">Écrire</span>
           </button>
           <button class="outil-pilule" id="btn-surprise">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.15" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.15" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.15" fill="currentColor" stroke="none"/></svg>
-            Surprise
+            <span data-i18n="somm.surprise">Surprise</span>
           </button>
         </div>
       </div>
     </div>
 
     <div class="champ-repas" id="bloc-ecrire" hidden>
-      <textarea id="saisie-repas" rows="2" placeholder="Ex : côte de bœuf grillée et cèpes…"></textarea>
+      <textarea id="saisie-repas" rows="2" placeholder="Ex : côte de bœuf grillée et cèpes…" data-i18n-placeholder="somm.placeholderRepas"></textarea>
       <button class="micro-mini btn-envoi" id="btn-conseiller" aria-label="Demander conseil">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6m-6 6l6-6 6 6"/></svg>
       </button>
@@ -177,25 +177,25 @@
   <!-- ═══ ALERTES ═══ -->
   <section class="ecran" id="ecran-alertes" hidden>
     <div id="liste-alertes"></div>
-    <h3 class="sous-titre">Mes veilles</h3>
+    <h3 class="sous-titre" data-i18n="alertes.mesVeilles">Mes veilles</h3>
     <div id="liste-veilles"></div>
     <form class="forme-veille" id="forme-veille">
       <select id="veille-type">
-        <option value="region">Région</option>
-        <option value="millesime">Millésime</option>
-        <option value="reference">Référence</option>
+        <option value="region" data-i18n="alertes.region">Région</option>
+        <option value="millesime" data-i18n="alertes.millesime">Millésime</option>
+        <option value="reference" data-i18n="alertes.reference">Référence</option>
       </select>
       <span id="veille-valeur-slot"></span>
       <input type="number" id="veille-seuil" min="1" value="3" aria-label="Seuil">
-      <button class="btn-or" type="submit">Veiller</button>
+      <button class="btn-or" type="submit" data-i18n="alertes.veiller">Veiller</button>
     </form>
   </section>
 
   <!-- ═══ STATS ═══ -->
   <section class="ecran" id="ecran-stats" hidden>
     <div class="segmente" id="vue-stats">
-      <button class="seg actif" data-vue="chiffres">Chiffres</button>
-      <button class="seg" data-vue="carte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg> Carte</button>
+      <button class="seg actif" data-vue="chiffres" data-i18n="stats.chiffres">Chiffres</button>
+      <button class="seg" data-vue="carte"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg> <span data-i18n="stats.carte">Carte</span></button>
     </div>
     <div id="contenu-stats"></div>
     <div id="contenu-carte" hidden></div>
@@ -203,7 +203,7 @@
 
   <!-- ═══ PROFIL ═══ -->
   <section class="ecran" id="ecran-profil" hidden>
-    <button class="retour-profil" id="btn-retour-profil" aria-label="Retour">‹ Retour</button>
+    <button class="retour-profil" id="btn-retour-profil" aria-label="Retour" data-i18n="profil.retour">‹ Retour</button>
     <div id="contenu-profil"></div>
   </section>
 
@@ -213,26 +213,26 @@
 <nav class="nav" aria-label="Navigation principale">
   <button class="nav-item" data-ecran="cave" aria-label="Cave">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 21V10a9 7 0 0 1 18 0v11M3 21h18M7 21v-6h4v6m4-9h2"/></svg>
-    <span>Cave</span>
+    <span data-i18n="nav.cave">Cave</span>
   </button>
   <button class="nav-item" data-ecran="ajouter" aria-label="Ajouter">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    <span>Ajouter</span>
+    <span data-i18n="nav.ajouter">Ajouter</span>
   </button>
   <button class="nav-item nav-central" data-ecran="sommelier" aria-label="Sommelier">
     <span class="pastille-sommelier">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3h8l-.6 6a3.4 3.4 0 0 1-6.8 0L8 3ZM12 12.5V20m-4 1h8"/><path d="M8.4 7h7.2" opacity=".5"/></svg>
     </span>
-    <span>Sommelier</span>
+    <span data-i18n="nav.sommelier">Sommelier</span>
   </button>
   <button class="nav-item" data-ecran="alertes" aria-label="Alertes">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Zm4 9a2 2 0 0 0 4 0"/></svg>
-    <span>Alertes</span>
+    <span data-i18n="nav.alertes">Alertes</span>
     <span class="badge-nav" id="badge-alertes" hidden></span>
   </button>
   <button class="nav-item" data-ecran="stats" aria-label="Statistiques">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>
-    <span>Stats</span>
+    <span data-i18n="nav.stats">Stats</span>
   </button>
 </nav>
 
