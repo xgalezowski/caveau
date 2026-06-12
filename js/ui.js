@@ -1209,22 +1209,24 @@ function carteReco(c, i, profil) {
   const b = c.bottle;
   const pct = pctAccord(c.score);
   const m = c.maturite;
+  const couleur = String(b.couleur || 'rouge').toLowerCase().replace(/\s+/g, '-');
+  // r=24 → circonférence = 2π×24 ≈ 151 ; dashoffset 0 = plein, 151 = vide
+  const offset = 151 - Math.round(151 * pct / 100);
   return `
-    <div class="reco ${i === 0 ? 'premier' : ''}" data-id="${b.id}">
+    <div class="reco ${i === 0 ? 'premier' : ''} reco-c-${esc(couleur)}" data-id="${b.id}">
       ${i === 0 ? '<div class="reco-ruban">Accord parfait</div>' : ''}
       <div class="reco-tete">
-        <div class="carte-couleur c-${esc(String(b.couleur || 'rouge').toLowerCase())}"></div>
         <div class="reco-corps">
-          <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
+          <div class="reco-nom">${esc(b.nom)}${b.millesime ? ` <span class="mil">${b.millesime}</span>` : ''}</div>
           <div class="carte-meta">${esc(b.region)} · ${esc(b.couleur)}${b.prix ? ` · ${b.prix} €` : ''} · ×${b.qty}</div>
           ${m && MAT_LABELS[m.code] ? `<span class="cachet cachet-${m.code}">${MAT_LABELS[m.code]}</span>` : ''}
         </div>
-        <div class="reco-anneau" title="Qualité de l'accord">
-          <svg viewBox="0 0 46 46" width="46" height="46">
-            <circle class="fond" cx="23" cy="23" r="18"/>
-            <circle class="jauge" cx="23" cy="23" r="18" stroke-dasharray="113" stroke-dashoffset="${113 - Math.round(113 * pct / 100)}"/>
+        <div class="reco-anneau" title="${pct}% d'accord avec votre demande">
+          <svg viewBox="0 0 60 60" width="60" height="60">
+            <circle class="fond" cx="30" cy="30" r="24"/>
+            <circle class="jauge" cx="30" cy="30" r="24" stroke-dasharray="151" stroke-dashoffset="${offset}"/>
           </svg>
-          <span class="reco-pct">${pct}%</span>
+          <div class="reco-pct"><b>${pct}%</b><small>accord</small></div>
         </div>
       </div>
       <div class="reco-texte">${esc(argumentaire(c, profil, i))}</div>
@@ -1418,13 +1420,13 @@ function initSommelier() {
     const b = surprise(enCave);
     const m = maturite(b);
     $('#orbe-scene').classList.add('compacte');
+    const cSurp = String(b.couleur || 'rouge').toLowerCase().replace(/\s+/g, '-');
     $('#resultats-sommelier').innerHTML = `
-      <div class="reco premier" data-id="${b.id}">
+      <div class="reco premier reco-c-${esc(cSurp)}" data-id="${b.id}">
         <div class="reco-ruban">Le hasard a du goût</div>
         <div class="reco-tete">
-          <div class="carte-couleur c-${esc(String(b.couleur || 'rouge').toLowerCase())}"></div>
           <div class="reco-corps">
-            <div class="carte-nom">${esc(b.nom)} ${b.millesime ? `<span class="mil">${b.millesime}</span>` : ''}</div>
+            <div class="reco-nom">${esc(b.nom)}${b.millesime ? ` <span class="mil">${b.millesime}</span>` : ''}</div>
             <div class="carte-meta">${esc(b.region)} · ${esc(b.couleur)}${b.prix ? ` · ${b.prix} €` : ''}</div>
             ${MAT_LABELS[m.code] ? `<span class="cachet cachet-${m.code}">${MAT_LABELS[m.code]}</span>` : ''}
           </div>
