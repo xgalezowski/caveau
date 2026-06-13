@@ -8,6 +8,29 @@ const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.
 
 export const voixDisponible = !!SR;
 
+// iOS/iPadOS ne donne PAS l'API de reconnaissance vocale aux apps web. Repli
+// universel : quand la dictée « maison » est indispo, on donne le focus au champ
+// et l'utilisateur dicte avec le micro du clavier (dictée native, sur l'appareil
+// — rien ne quitte le téléphone). repliClavier vaut donc true exactement quand
+// voixDisponible vaut false.
+export const repliClavier = !SR;
+export const estIOS = typeof navigator !== 'undefined' &&
+  (/iP(hone|od|ad)/.test(navigator.platform) ||
+    (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1));
+
+let astuceClavierVue = false;
+// Donne le focus au champ pour invoquer la dictée native du clavier ; sur iOS,
+// affiche une fois une astuce signalant le micro du clavier.
+export function inviterDicteeClavier(champ, toast) {
+  if (!champ) return;
+  champ.focus();
+  try { const n = champ.value.length; champ.setSelectionRange(n, n); } catch { /* range non supporté */ }
+  if (estIOS && !astuceClavierVue && typeof toast === 'function') {
+    astuceClavierVue = true;
+    toast(t('voix.astuceClavier'));
+  }
+}
+
 // Lance une dictée ; onResult(texte, final) appelé au fil de l'eau.
 // Mode `continu` : on n'arrête PAS à la première pause — la fin de phrase
 // est détectée par un silence prolongé (silenceMs) après le dernier mot,

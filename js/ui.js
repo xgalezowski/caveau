@@ -6,7 +6,7 @@ import { parseTexte, parseLigne, parseTexteSpirit, parseLigneSpirit } from './pa
 import { recommander, surprise, argumentaire, pctAccord } from './sommelier.js';
 import { creerOrbe } from './orbe-fluide.js';
 import { REGIONS, COULEURS, PAYS, FORMATS, TYPES_SPIRITUEUX, regionsPour, maturite, gardeParDefaut } from './wine-data.js';
-import { dicter, parler, voixDisponible } from './voice.js';
+import { dicter, parler, voixDisponible, inviterDicteeClavier } from './voice.js';
 import { analyserEtiquette, analyserEtiquetteSpirit, sommelierPlus, equivalents, enrichirBouteille, synthVoixGemini, genererImageBouteille, argumenterRecos } from './ai.js';
 import { vibrer, transitionEcran } from './fx.js';
 import { t, getLang } from './i18n.js';
@@ -556,16 +556,7 @@ function ouvrirFiche(id) {
     });
     montrerFeuille(false); rendre(ecranActif); toast(t('fiche.toastMAJ'));
   };
-  if (!voixDisponible) $('#f-micro-notes').style.display = 'none';
-  $('#f-micro-notes').onclick = () => {
-    $('#f-micro-notes').classList.add('ecoute');
-    const avant = $('#f-notes').value;
-    dicter({
-      onResult: (txt) => { $('#f-notes').value = (avant ? avant + ' ' : '') + txt; },
-      onEnd: () => $('#f-micro-notes').classList.remove('ecoute'),
-      onError: (msg) => toast(msg),
-    });
-  };
+  brancherMicroNotes();
   $('#f-manote').oninput = () => {
     const v = parseInt($('#f-manote').value);
     $('#f-manote-val').textContent = v ? `${v}/100` : '—';
@@ -675,16 +666,7 @@ function ouvrirFicheSpirit(b) {
       store.supprimerBouteille(id); montrerFeuille(false); rendre(ecranActif); toast(t('fiche.toastSupprimee'));
     }
   };
-  if (!voixDisponible) $('#f-micro-notes').style.display = 'none';
-  $('#f-micro-notes').onclick = () => {
-    $('#f-micro-notes').classList.add('ecoute');
-    const avant = $('#f-notes').value;
-    dicter({
-      onResult: (txt) => { $('#f-notes').value = (avant ? avant + ' ' : '') + txt; },
-      onEnd: () => $('#f-micro-notes').classList.remove('ecoute'),
-      onError: (msg) => toast(msg),
-    });
-  };
+  brancherMicroNotes();
   $('#f-manote').oninput = () => {
     const v = parseInt($('#f-manote').value);
     $('#f-manote-val').textContent = v ? `${v}/100` : '—';
@@ -900,6 +882,26 @@ function liensRachatHTML(b) {
     <a href="https://www.google.com/search?tbm=shop&q=${qApp}+vin+promo" target="_blank" rel="noopener">Promos ↗</a>`;
 }
 
+// Bouton micro des notes de dégustation : dictée web si dispo, sinon (iOS)
+// repli sur la dictée native du clavier en donnant le focus au champ.
+function brancherMicroNotes() {
+  const bouton = $('#f-micro-notes');
+  if (!bouton) return;
+  if (voixDisponible) {
+    bouton.onclick = () => {
+      bouton.classList.add('ecoute');
+      const avant = $('#f-notes').value;
+      dicter({
+        onResult: (txt) => { $('#f-notes').value = (avant ? avant + ' ' : '') + txt; },
+        onEnd: () => bouton.classList.remove('ecoute'),
+        onError: (msg) => toast(msg),
+      });
+    };
+  } else {
+    bouton.onclick = () => inviterDicteeClavier($('#f-notes'), toast);
+  }
+}
+
 /* ═══ AJOUTER ═══ */
 function initAjouter() {
   const aideMicro = () => catAjout === 'spiritueux'
@@ -928,7 +930,6 @@ function initAjouter() {
     $('#modes-ajout').querySelectorAll('.seg').forEach((x) => x.classList.toggle('actif', x === s));
     montrerModes();
   });
-  if (!voixDisponible) $('#modes-ajout [data-mode="voix"]').style.display = 'none';
   const rendreApercuCourant = () => catAjout === 'spiritueux' ? rendreApercuSpirit() : rendreApercu();
 
   // Formulaire vin
@@ -986,6 +987,13 @@ function initAjouter() {
   // Voix
   let rec = null;
   $('#btn-micro').onclick = () => {
+    if (!voixDisponible) {
+      // iOS : pas de reconnaissance web → on bascule vers la saisie texte et on
+      // invite la dictée native du clavier (puis « Analyser » comme d'habitude).
+      $('#modes-ajout [data-mode="texte"]').click();
+      inviterDicteeClavier($('#saisie-texte'), toast);
+      return;
+    }
     if (rec) { rec.stop(); return; }
     $('#btn-micro').classList.add('ecoute');
     $('#micro-aide').textContent = 'Je vous écoute…';
@@ -1541,7 +1549,7 @@ function initSommelier() {
   $('#btn-micro-sommelier').onclick = () => {
     if (!orbe || orbe.etat === 'reflexion') return;
     if (orbe.etat === 'ecoute') { try { dicteeEnCours?.stop(); } catch { } return; }
-    if (!voixDisponible) { basculerEcrire(true); return; }
+    if (!voixDisponible) { basculerEcrire(true); inviterDicteeClavier($('#saisie-repas'), toast); return; }
     vibrer('tic');
     $('#orbe-scene').classList.remove('compacte');
     majTranscript('');

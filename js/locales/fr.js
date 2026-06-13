@@ -38,6 +38,7 @@ export default {
   'voix.sortie.2': 'Servez-la à bonne température, elle le mérite.',
   'voix.sortie.3': 'Elle quitte la cave la tête haute. Régalez-vous !',
   'voix.sortie.4': 'Pensez à la carafer si elle est jeune. Santé !',
+  'voix.astuceClavier': 'Astuce iPhone : touchez 🎤 sur le clavier pour dicter.',
 
   // ── Cave screen
   'cave.bouteilles': 'bouteilles',

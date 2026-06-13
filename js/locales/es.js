@@ -38,6 +38,7 @@ export default {
   'voix.sortie.2': 'Servilo a la temperatura ideal, se lo merece.',
   'voix.sortie.3': 'Se va de la bodega con la frente en alto. ¡Que lo disfrutes!',
   'voix.sortie.4': 'Acordate de decantarlo si es muy joven. ¡Salud!',
+  'voix.astuceClavier': 'Tip iPhone: tocá 🎤 en el teclado para dictar.',
 
   // ── Cave screen
   'cave.bouteilles': 'botellas',

@@ -38,6 +38,7 @@ export default {
   'voix.sortie.2': 'Serve it at the right temperature, it deserves it.',
   'voix.sortie.3': 'It leaves the cellar with its head held high. Enjoy!',
   'voix.sortie.4': 'Remember to decant it if it\'s young. Cheers!',
+  'voix.astuceClavier': 'iPhone tip: tap 🎤 on the keyboard to dictate.',
 
   // ── Cave screen
   'cave.bouteilles': 'bottles',
